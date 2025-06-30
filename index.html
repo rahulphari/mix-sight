@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mix Bag Analytics Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #eef2f8; /* Lighter blue-grey background */
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+        .dashboard-header {
+            background-image: linear-gradient(to right top, #2563eb, #3b82f6, #60a5fa); /* Blue gradient */
+            color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .dashboard-header h1 {
+            font-size: 2.25rem; /* text-4xl */
+            font-weight: 800; /* font-extrabold */
+            margin-bottom: 0.5rem;
+        }
+        .section-title {
+            @apply text-2xl font-bold text-gray-800 mb-4 border-b pb-2;
+        }
+        .upload-section {
+            @apply mb-8 bg-blue-50 p-6 rounded-xl shadow-md border border-blue-200;
+        }
+        /* Removed .results-grid specific column definitions, will use flex for top row */
+        .card {
+            @apply bg-white p-6 rounded-xl shadow-lg border border-gray-200 mb-6;
+        }
+        .error-message {
+            @apply text-red-600 text-sm mt-4 hidden;
+        }
+        .ageing-category-card {
+            @apply p-4 rounded-lg shadow-sm border flex flex-col justify-between items-center text-center transition duration-300 ease-in-out transform hover:scale-105 cursor-pointer;
+            min-height: 120px; /* Ensure consistent height */
+        }
+        .ageing-category-card.bg-blue-category {
+            background-color: #e0f2fe; /* Light Blue */
+            border-color: #93c5fd;
+        }
+        .ageing-category-card.bg-orange-category {
+            background-color: #fff7ed; /* Light Orange */
+            border-color: #fed7aa;
+        }
+        .ageing-category-card.bg-red-category {
+            background-color: #fee2e2; /* Light Red */
+            border-color: #fca5a5;
+        }
+        .ageing-category-card.bg-green-category {
+            background-color: #e6ffed; /* Light Green */
+            border-color: #9ae6b4;
+        }
+        .ageing-category-title {
+            @apply text-lg font-semibold mb-2;
+        }
+        .ageing-counts {
+            @apply text-base;
+        }
+        .ageing-counts strong {
+            @apply text-2xl font-bold;
+        }
+        /* Text colors for cards */
+        .ageing-category-card.bg-blue-category .ageing-category-title,
+        .ageing-category-card.bg-blue-category .ageing-counts {
+            color: #1e40af; /* Darker blue text */
+        }
+        .ageing-category-card.bg-orange-category .ageing-category-title,
+        .ageing-category-card.bg-orange-category .ageing-counts {
+            color: #c2410c; /* Darker orange text */
+        }
+        .ageing-category-card.bg-red-category .ageing-category-title,
+        .ageing-category-card.bg-red-category .ageing-counts {
+            color: #b91c1c; /* Darker red text */
+        }
+        .ageing-category-card.bg-green-category .ageing-category-title,
+        .ageing-category-card.bg-green-category .ageing-counts {
+            color: #047857; /* Darker green text */
+        }
+
+        .collapsible-header {
+            @apply text-xl font-bold text-gray-800 mb-3 cursor-pointer flex justify-between items-center hover:text-blue-700 transition-colors;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out, padding 0.3s ease-out;
+            @apply border border-gray-200 rounded-lg bg-gray-50;
+        }
+        .collapsible-content.expanded {
+            max-height: 1000px; /* A value large enough to contain content */
+            opacity: 1;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            @apply px-4;
+        }
+        .collapsible-scroll-area {
+            max-height: 400px; /* Adjust as needed for desired scroll height */
+            overflow-y: auto;
+            padding-right: 1rem;
+        }
+        .filter-group {
+            @apply mb-4;
+        }
+        .cluster-dropdown-wrapper {
+            @apply mb-4;
+        }
+        .cluster-select {
+            @apply block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm;
+        }
+
+        /* Table specific styles */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .data-table th, .data-table td {
+            padding: 0.8rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.9rem;
+        }
+        .data-table th {
+            background-color: #f0f4f8;
+            font-weight: 600;
+            color: #475569;
+            text-transform: uppercase;
+            cursor: pointer;
+            position: relative;
+        }
+        .data-table th .sort-icon {
+            margin-left: 0.5rem;
+            font-size: 0.7em;
+            vertical-align: middle;
+            color: #94a3b8;
+        }
+        .data-table th.sorted-asc .sort-icon {
+            color: #2563eb;
+        }
+        .data-table th.sorted-desc .sort-icon {
+            color: #2563eb;
+            transform: rotate(180deg);
+        }
+        .data-table tbody tr:nth-child(even) {
+            background-color: #fcfdfe;
+        }
+        .data-table tbody tr:hover {
+            background-color: #e0f7fa;
+        }
+        /* Animation for table rows */
+        .data-table tbody tr {
+            animation: fadeIn 0.5s ease-out forwards;
+            opacity: 0;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .data-table tbody tr:nth-child(2) { animation-delay: 0.05s; }
+        .data-table tbody tr:nth-child(3) { animation-delay: 0.10s; }
+        .data-table tbody tr:nth-child(4) { animation-delay: 0.15s; }
+        .data-table tbody tr:nth-child(5) { animation-delay: 0.20s; }
+
+        /* Status indicator styles */
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-online {
+            background-color: #10b981; /* Green */
+        }
+        .status-offline {
+            background-color: #ef4444; /* Red */
+        }
+
+        /* BFSI $ animation */
+        @keyframes bfsiPop {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            25% { transform: translateY(-3px) scale(1.1); opacity: 0.8; }
+            50% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        .bfsi-icon {
+            font-size: 0.7em;
+            vertical-align: super;
+            margin-left: 2px;
+            color: #0d9488; /* Teal color */
+            display: inline-block;
+            animation: bfsiPop 1.5s ease-in-out infinite;
+        }
+        .remarks-textarea {
+            width: 100%;
+            min-height: 60px;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            resize: vertical;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        /* AI Insights Specific Styles */
+        .ai-insight-card {
+            @apply p-4 rounded-lg shadow-md mb-3 flex items-start;
+        }
+        .ai-insight-card.alert-critical {
+            @apply bg-red-100 border border-red-400 text-red-800;
+        }
+        .ai-insight-card.alert-warning {
+            @apply bg-orange-100 border border-orange-400 text-orange-800;
+        }
+        .ai-insight-card.alert-info {
+            @apply bg-blue-100 border border-blue-400 text-blue-800;
+        }
+        .ai-insight-icon {
+            @apply mr-3 flex-shrink-0;
+        }
+        .ai-insight-content {
+            @apply flex-grow;
+        }
+        .ai-insight-title {
+            @apply font-semibold text-lg mb-1;
+        }
+        .ai-insight-description {
+            @apply text-sm;
+        }
+        .ai-insight-list {
+            @apply list-disc list-inside text-sm mt-2;
+        }
+        .ai-insight-list li {
+            @apply mb-1;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4">
+    <div class="container">
+        <div class="dashboard-header">
+            <h1>Mix Bag Analytics Dashboard</h1>
+            <p class="text-blue-100 text-lg">Gain insights into your mix bag ageing and pending clusters</p>
+        </div>
+
+        <div id="uploadSection" class="upload-section">
+            <label for="mixBagFileUpload" class="block text-blue-800 text-lg font-bold mb-3">
+                Upload Mix Bag GI Pending File (CSV)
+            </label>
+            <input type="file" id="mixBagFileUpload" name="mixBagFileUpload" accept=".csv"
+                   class="block w-full text-sm text-gray-700
+                          file:mr-4 file:py-2 file:px-4
+                          file:rounded-lg file:border-0
+                          file:text-sm file:font-semibold
+                          file:bg-blue-200 file:text-blue-800
+                          hover:file:bg-blue-300
+                          border border-blue-300 rounded-lg py-2 px-3
+                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+                   required>
+            
+            <button id="uploadAndAnalyzeButton"
+                    class="mt-6 w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75">
+                Upload & Analyze
+            </button>
+        </div>
+
+        <div id="resultsDisplay" class="hidden">
+            <div class="flex flex-col lg:flex-row lg:space-x-6">
+                <div class="w-full lg:w-1/2">
+                    <div class="card">
+                        <h2 class="section-title flex items-center">
+                            <span class="status-indicator" id="backendStatusIndicator"></span>
+                            Backend Status ©Rh
+                        </h2>
+                        <div id="scriptStatus" class="text-gray-700 text-sm">
+                            <p>Status: <span id="statusText">Checking...</span></p>
+                            <p>Version: <span id="versionText">N/A</span></p>
+                            <p>Last Analysis: <span id="lastAnalysisText">N/A</span></p>
+                            <p>Total Analyses: <span id="totalAnalysesText">N/A</span></p>
+                            <p>Uptime: <span id="uptimeText">N/A</span></p>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2 class="section-title">MixBag Summary</h2>
+                        <div id="allAgeGroupCard" class="ageing-category-card bg-green-category mb-4" data-age-category="All">
+                            <div class="flex items-center justify-center mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package">
+                                    <path d="m7.5 4.27 9 5.15" />
+                                    <path d="m7.5 19.73 9-5.15" />
+                                    <path d="M3.34 6.46 7.5 4.27 12.66 7.14 8.5 9.33 3.34 6.46Z" />
+                                    <path d="M2.67 7.65V16.35L12 22l9.33-5.65V7.65L12 2 2.67 7.65Z" />
+                                    <path d="m16.5 4.27-9 5.15" />
+                                    <path d="m16.5 19.73-9-5.15" />
+                                    <path d="M21.33 16.35V7.65L12 2l-9.33 5.65v8.7L12 22l9.33-5.65Z" />
+                                </svg>
+                                <div class="ageing-category-title ml-2">All Pending Bags</div>
+                            </div>
+                            <div class="ageing-counts">
+                                Bags: <strong id="totalPendingBags">0</strong><br>
+                                WBNs: <strong id="totalPendingShipments">0</strong>
+                            </div>
+                        </div>
+                        <div id="ageingCategories" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            </div>
+                    </div>
+                </div>
+
+                <div class="w-full lg:w-1/2">
+                    <div class="card">
+                        <h2 class="section-title flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-zap text-blue-500 mr-2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            AI Generated Insights
+                        </h2>
+                        <div id="aiInsightsContent" class="collapsible-scroll-area">
+                            <p class="text-gray-600">Insights will appear here after analysis.</p>
+                        </div>
+                    </div>
+                </div>
+            </div> <div class="card">
+                <h2 class="collapsible-header" data-target="filterOptionsContent">
+                    Filter Options
+                    <span class="arrow-icon">&#9660;</span> </h2>
+                <div id="filterOptionsContent" class="collapsible-content">
+                    <div class="collapsible-scroll-area">
+                        <div class="filter-group">
+                            <label for="minWBNFilter" class="block text-gray-700 text-sm font-semibold mb-2">
+                                Min WBNs in Bag:
+                            </label>
+                            <input type="number" id="minWBNFilter" min="0" placeholder="e.g., 1"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div class="filter-group">
+                            <label for="maxWBNFilter" class="block text-gray-700 text-sm font-semibold mb-2">
+                                Max WBNs in Bag:
+                            </label>
+                            <input type="number" id="maxWBNFilter" min="0" placeholder="e.g., 100"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        </div>
+                        <div class="filter-group">
+                            <label class="block text-gray-700 text-sm font-semibold mb-2">BFSI Status:</label>
+                            <select id="bfsiFilter" class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option value="">All</option>
+                                <option value="true">Yes (BFSI)</option>
+                                <option value="false">No (Non-BFSI)</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="clusterMultiSelect" class="block text-gray-700 text-sm font-semibold mb-2">
+                                Cluster Name (Multi-select):
+                            </label>
+                            <select id="clusterMultiSelect" multiple
+                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm h-32 overflow-y-auto">
+                                </select>
+                            <p class="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple.</p>
+                        </div>
+                        <div class="filter-group">
+                            <label for="ageingBracketMultiSelect" class="block text-gray-700 text-sm font-semibold mb-2">
+                                Ageing Bracket (Multi-select):
+                            </label>
+                            <select id="ageingBracketMultiSelect" multiple
+                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm h-32 overflow-y-auto">
+                                <option value="0 to 1 hr">0 to 1 hr</option>
+                                <option value="1 to 2 hr">1 to 2 hr</option>
+                                <option value="2 to 2.5 hrs">2 to 2.5 hrs</option>
+                                <option value="More than 2.5 hrs">More than 2.5 hrs</option>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple.</p>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2 mt-4">
+                        <button id="applyFiltersButton"
+                                class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75">
+                            Apply Filters
+                        </button>
+                        <button id="clearFiltersButton"
+                                class="flex-1 bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-full shadow-md hover:shadow-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75">
+                            Clear Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="collapsible-header" data-target="dynamicAgeGroupContent">
+                    <span id="dynamicAgeGroupTitle">Detailed Bag List</span>
+                    <span class="arrow-icon">&#9660;</span> </h2>
+                <div id="dynamicAgeGroupContent" class="collapsible-content">
+                    <button id="copyRemarksAgeGroup" class="bg-indigo-500 hover:bg-indigo-600 text-white text-sm py-1 px-3 rounded-full mb-3 hidden">Copy Remarks</button>
+                    <div id="dynamicAgeGroupList" class="collapsible-scroll-area">
+                        <p class="text-gray-600">Click on an ageing category card to see details here.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="collapsible-header" data-target="clusterAnalysisContent">
+                    Cluster-wise Pending Bags
+                    <span class="arrow-icon">&#9660;</span> </h2>
+                <div id="clusterAnalysisContent" class="collapsible-content">
+                    <div class="collapsible-scroll-area">
+                        <div class="cluster-dropdown-wrapper">
+                            <label for="clusterSelect" class="block text-gray-700 text-sm font-semibold mb-2">
+                                Select Cluster:
+                            </label>
+                            <select id="clusterSelect" class="cluster-select">
+                                <option value="">-- Select a Cluster --</option>
+                                </select>
+                            <p id="clusterSummary" class="text-gray-600 text-sm mt-2 hidden">
+                                Total Bags for Cluster: <strong id="selectedClusterBags"></strong>, Total Shipments for Cluster: <strong id="selectedClusterWBNs"></strong>
+                            </p>
+                        </div>
+                        <button id="copyRemarksCluster" class="bg-indigo-500 hover:bg-indigo-600 text-white text-sm py-1 px-3 rounded-full mb-3 hidden">Copy Remarks</button>
+                        <div id="clusterDetails" class="mt-4">
+                            </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="errorMessage" class="error-message"></div>
+    </div>
+
+    <script>
+        // Define your backend URL here. You will update this AFTER your Render backend is deployed.
+        const BACKEND_BASE_URL = 'YOUR_RENDER_BACKEND_URL_HERE'; // !!! IMPORTANT: Update this after deployment !!!
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileUploadInput = document.getElementById('mixBagFileUpload');
+            const uploadAndAnalyzeButton = document.getElementById('uploadAndAnalyzeButton');
+            const resultsDisplay = document.getElementById('resultsDisplay');
+            const errorMessage = document.getElementById('errorMessage');
+            const ageingCategoriesDiv = document.getElementById('ageingCategories');
+            
+            // Elements for overall summary
+            const totalPendingBagsSpan = document.getElementById('totalPendingBags');
+            const totalPendingShipmentsSpan = document.getElementById('totalPendingShipments');
+            const allAgeGroupCard = document.getElementById('allAgeGroupCard');
+
+            // Filter elements
+            const minWBNFilterInput = document.getElementById('minWBNFilter');
+            const maxWBNFilterInput = document.getElementById('maxWBNFilter');
+            const bfsiFilterSelect = document.getElementById('bfsiFilter');
+            const clusterMultiSelect = document.getElementById('clusterMultiSelect');
+            const ageingBracketMultiSelect = document.getElementById('ageingBracketMultiSelect');
+            const applyFiltersButton = document.getElementById('applyFiltersButton');
+            const clearFiltersButton = document.getElementById('clearFiltersButton');
+            const filterOptionsContent = document.getElementById('filterOptionsContent');
+
+            // Dynamic Age Group Content
+            const dynamicAgeGroupContent = document.getElementById('dynamicAgeGroupContent');
+            const dynamicAgeGroupTitle = document.getElementById('dynamicAgeGroupTitle');
+            const dynamicAgeGroupListDiv = document.getElementById('dynamicAgeGroupList');
+            const copyRemarksAgeGroupBtn = document.getElementById('copyRemarksAgeGroup');
+
+            // Cluster Analysis Content
+            const clusterAnalysisContent = document.getElementById('clusterAnalysisContent');
+            const clusterSelect = document.getElementById('clusterSelect');
+            const clusterSummary = document.getElementById('clusterSummary');
+            const selectedClusterBagsSpan = document.getElementById('selectedClusterBags');
+            const selectedClusterWBNsSpan = document.getElementById('selectedClusterWBNs');
+            const clusterDetailsDiv = document.getElementById('clusterDetails');
+            const copyRemarksClusterBtn = document.getElementById('copyRemarksCluster');
+
+            // AI Insights
+            const aiInsightsContentDiv = document.getElementById('aiInsightsContent');
+
+
+            // Backend Status Elements
+            const backendStatusIndicator = document.getElementById('backendStatusIndicator');
+            const statusText = document.getElementById('statusText');
+            const versionText = document.getElementById('versionText');
+            const lastAnalysisText = document.getElementById('lastAnalysisText');
+            const totalAnalysesText = document.getElementById('totalAnalysesText');
+            const uptimeText = document.getElementById('uptimeText');
+
+
+            const BAG_HQ_BASE_URL = "https://hq.delhivery.com/bag/";
+
+            let uploadedCsvContent = null;
+            let uploadedFileName = null;
+            let currentAnalysisData = null; // Stores the full analysis response
+
+            function showMessage(element, message, isError = false) {
+                element.textContent = message;
+                element.classList.remove('hidden');
+                if (isError) {
+                    element.classList.add('text-red-600');
+                    element.classList.remove('text-green-600');
+                } else {
+                    element.classList.add('text-green-600');
+                    element.classList.remove('text-red-600');
+                }
+            }
+
+            function toggleCollapsible(event) {
+                const targetId = event.currentTarget.dataset.target;
+                const content = document.getElementById(targetId);
+                const icon = event.currentTarget.querySelector('.arrow-icon');
+
+                // Keep only the target content expanded, collapse others that are expanded
+                document.querySelectorAll('.collapsible-content.expanded').forEach(openContent => {
+                    // Do not collapse the filter options if another panel is opened,
+                    // allowing users to filter while viewing details.
+                    // Also, ensure we don't try to collapse the target content itself.
+                    if (openContent.id !== targetId && openContent.id !== 'filterOptionsContent') {
+                        openContent.classList.remove('expanded');
+                        const header = openContent.previousElementSibling;
+                        if (header) {
+                            const headerIcon = header.querySelector('.arrow-icon');
+                            if (headerIcon) headerIcon.innerHTML = '&#9660;';
+                        }
+                    }
+                });
+
+                if (content.classList.contains('expanded')) {
+                    content.classList.remove('expanded');
+                    icon.innerHTML = '&#9660;';
+                } else {
+                    content.classList.add('expanded');
+                    icon.innerHTML = '&#9650;';
+                }
+            }
+
+
+            function setupCollapsibleHeaders() {
+                document.querySelectorAll('.collapsible-header').forEach(header => {
+                    header.removeEventListener('click', toggleCollapsible);
+                    header.addEventListener('click', toggleCollapsible);
+                });
+
+                // Ensure the filter options content is collapsed initially on page load/re-render
+                if (filterOptionsContent) {
+                    filterOptionsContent.classList.remove('expanded');
+                    const filterHeader = document.querySelector('.collapsible-header[data-target="filterOptionsContent"]');
+                    if (filterHeader) {
+                        filterHeader.querySelector('.arrow-icon').innerHTML = '&#9660;';
+                    }
+                }
+            }
+
+
+            function getMultiSelectValues(selectElement) {
+                return Array.from(selectElement.selectedOptions).map(option => option.value);
+            }
+
+            async function analyzeData(csvContent, fileName, filters = {}) {
+                uploadAndAnalyzeButton.disabled = true;
+                applyFiltersButton.disabled = true;
+                clearFiltersButton.disabled = true;
+                fileUploadInput.disabled = true;
+
+                errorMessage.classList.add('hidden');
+                resultsDisplay.classList.add('hidden');
+                ageingCategoriesDiv.innerHTML = '';
+                dynamicAgeGroupListDiv.innerHTML = '<p class="text-gray-600">Click on an ageing category card to see details here.</p>';
+                dynamicAgeGroupTitle.textContent = 'Detailed Bag List';
+                copyRemarksAgeGroupBtn.classList.add('hidden');
+                clusterSelect.innerHTML = '<option value="">-- Select a Cluster --</option>';
+                clusterMultiSelect.innerHTML = '';
+                clusterSummary.classList.add('hidden');
+                clusterDetailsDiv.innerHTML = '';
+                copyRemarksClusterBtn.classList.add('hidden');
+                aiInsightsContentDiv.innerHTML = '<p class="text-gray-600">Insights will appear here after analysis.</p>';
+
+
+                document.querySelectorAll('.collapsible-content').forEach(content => {
+                    content.classList.remove('expanded');
+                });
+                document.querySelectorAll('.collapsible-header .arrow-icon').forEach(icon => icon.innerHTML = '&#9660;');
+
+                try {
+                    const payload = {
+                        file_name: fileName,
+                        csv_content: csvContent,
+                        min_wbn_filter: filters.min_wbn_filter,
+                        max_wbn_filter: filters.max_wbn_filter,
+                        is_bfsi_filter: filters.is_bfsi_filter,
+                        selected_clusters: filters.selected_clusters,
+                        selected_age_brackets: filters.selected_age_brackets
+                    };
+                    console.log("Sending payload:", payload);
+
+                    const response = await fetch(`${BACKEND_BASE_URL}/api/mix-bag-analytics`, { // Changed URL to use BACKEND_BASE_URL
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Failed to analyze data.');
+                    }
+
+                    const data = await response.json();
+                    console.log("Backend response:", data);
+                    currentAnalysisData = data;
+
+                    renderAgeingAnalysis(data.ageing_groups, data.total_pending_bags, data.total_pending_shipments);
+                    populateClusterDropdowns(data.cluster_details, data.all_unique_clusters);
+                    renderAIInsights(data.ai_insights);
+
+                    resultsDisplay.classList.remove('hidden');
+                    setupCollapsibleHeaders();
+                    showMessage(errorMessage, `Analysis complete for "${fileName}".`, false);
+
+                }
+                 catch (error) {
+                    console.error("Error during analysis:", error);
+                    showMessage(errorMessage, `Error: ${error.message}`, true);
+                } finally {
+                    uploadAndAnalyzeButton.disabled = false;
+                    applyFiltersButton.disabled = false;
+                    clearFiltersButton.disabled = false;
+                    fileUploadInput.disabled = false;
+                }
+            }
+
+            uploadAndAnalyzeButton.addEventListener('click', async () => {
+                const files = fileUploadInput.files;
+
+                if (files.length === 0) {
+                    showMessage(errorMessage, 'Please select a CSV file.', true);
+                    return;
+                }
+
+                const file = files[0];
+                if (!file.name.toLowerCase().endsWith('.csv')) {
+                    showMessage(errorMessage, 'Invalid file type. Please upload a CSV file.', true);
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    uploadedCsvContent = e.target.result;
+                    uploadedFileName = file.name;
+                    await analyzeData(uploadedCsvContent, uploadedFileName, {});
+                };
+
+                reader.onerror = () => {
+                    showMessage(errorMessage, 'Failed to read file from browser.', true);
+                    uploadAndAnalyzeButton.disabled = false;
+                    fileUploadInput.disabled = false;
+                };
+
+                reader.readAsText(file);
+            });
+
+            applyFiltersButton.addEventListener('click', async () => {
+                if (!uploadedCsvContent) {
+                    showMessage(errorMessage, 'Please upload a CSV file first.', true);
+                    return;
+                }
+                const filters = collectFilters();
+                await analyzeData(uploadedCsvContent, uploadedFileName, filters);
+            });
+
+            clearFiltersButton.addEventListener('click', async () => {
+                if (!uploadedCsvContent) {
+                    showMessage(errorMessage, 'Please upload a CSV file first to clear filters.', true);
+                    return;
+                }
+                resetFilterUI();
+                await analyzeData(uploadedCsvContent, uploadedFileName, {});
+            });
+
+            function collectFilters() {
+                const filters = {};
+                if (minWBNFilterInput.value !== '') {
+                    filters.min_wbn_filter = parseInt(minWBNFilterInput.value);
+                }
+                if (maxWBNFilterInput.value !== '') {
+                    filters.max_wbn_filter = parseInt(maxWBNFilterInput.value);
+                }
+                if (bfsiFilterSelect.value !== '') {
+                    filters.is_bfsi_filter = bfsiFilterSelect.value === 'true';
+                }
+                const selectedClusters = getMultiSelectValues(clusterMultiSelect);
+                if (selectedClusters.length > 0) {
+                    filters.selected_clusters = selectedClusters;
+                }
+                const selectedAgeBrackets = getMultiSelectValues(ageingBracketMultiSelect);
+                if (selectedAgeBrackets.length > 0) {
+                    filters.selected_age_brackets = selectedAgeBrackets;
+                }
+                return filters;
+            }
+
+            function resetFilterUI() {
+                minWBNFilterInput.value = '';
+                maxWBNFilterInput.value = '';
+                bfsiFilterSelect.value = '';
+                Array.from(clusterMultiSelect.options).forEach(option => option.selected = false);
+                Array.from(ageingBracketMultiSelect.options).forEach(option => option.selected = false);
+            }
+
+
+            function renderAgeingAnalysis(ageingGroups, totalBags, totalShipments) {
+                let html = '';
+                const categoriesOrder = ["0 to 1 hr", "1 to 2 hr", "2 to 2.5 hrs", "More than 2.5 hrs"];
+                const categoryColors = {
+                    "0 to 1 hr": "bg-blue-category",
+                    "1 to 2 hr": "bg-orange-category",
+                    "2 to 2.5 hrs": "bg-orange-category",
+                    "More than 2.5 hrs": "bg-red-category"
+                };
+
+                const iconMap = {
+                    "0 to 1 hr": `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle-2"><circle cx="12" cy="12" r="10"/><path d="m8 15 2 2 6-6"/></svg>`,
+                    "1 to 2 hr": `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-hourglass"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg>`,
+                    "2 to 2.5 hrs": `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-timer"><path d="M10 2h4"/><path d="M12 14v4"/><path d="M4.93 4.93 6.34 6.34"/><path d="M1.34 10.66 2.75 12"/><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"/><path d="M18.66 17.66 17.25 16.25"/></svg>`,
+                    "More than 2.5 hrs": `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-triangle"><path d="M10.29 3.86 1.86 18.14a2 2 0 0 0 1.74 3H20.4a2 2 0 0 0 1.74-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`
+                };
+
+                totalPendingBagsSpan.textContent = totalBags;
+                totalPendingShipmentsSpan.textContent = totalShipments;
+                allAgeGroupCard.removeEventListener('click', handleAllAgeGroupClick);
+                allAgeGroupCard.addEventListener('click', handleAllAgeGroupClick);
+
+
+                categoriesOrder.forEach(category => {
+                    const group = ageingGroups[category] || {bag_id_count: 0, wbn_count: 0, bags: []};
+                    let cardClasses = `ageing-category-card ${categoryColors[category]}`;
+
+                    html += `
+                        <div class="${cardClasses}" data-age-category="${category}">
+                            <div class="flex items-center justify-center mb-2">
+                                ${iconMap[category]}
+                                <div class="ageing-category-title ml-2">${category}</div>
+                            </div>
+                            <div class="ageing-counts">
+                                Bags: <strong>${group.bag_id_count}</strong><br>
+                                WBNs: <strong>${group.wbn_count}</strong>
+                            </div>
+                        </div>
+                    `;
+                });
+                ageingCategoriesDiv.innerHTML = html;
+
+                document.querySelectorAll('.ageing-category-card:not(#allAgeGroupCard)').forEach(card => {
+                    card.addEventListener('click', (event) => {
+                        const category = event.currentTarget.dataset.ageCategory;
+                        if (currentAnalysisData && currentAnalysisData.ageing_groups[category]) {
+                            dynamicAgeGroupTitle.textContent = `${category} Bags`;
+                            renderBagTable(dynamicAgeGroupListDiv, currentAnalysisData.ageing_groups[category].bags, 'ageGroup');
+                            const content = document.getElementById('dynamicAgeGroupContent');
+                            const header = content.previousElementSibling;
+                            if (!content.classList.contains('expanded')) {
+                                toggleCollapsible({ currentTarget: header });
+                            }
+                        }
+                    });
+                });
+            }
+
+            function handleAllAgeGroupClick() {
+                let allBags = [];
+                for (const category in currentAnalysisData.ageing_groups) {
+                    if (currentAnalysisData.ageing_groups.hasOwnProperty(category)) {
+                        allBags = allBags.concat(currentAnalysisData.ageing_groups[category].bags);
+                    }
+                }
+                
+                dynamicAgeGroupTitle.textContent = `All Filtered Bags`;
+                renderBagTable(dynamicAgeGroupListDiv, allBags, 'ageGroup');
+                const content = document.getElementById('dynamicAgeGroupContent');
+                const header = content.previousElementSibling;
+                if (!content.classList.contains('expanded')) {
+                    toggleCollapsible({ currentTarget: header });
+                }
+            }
+
+
+            function renderBagTable(targetDiv, bags, tableType) {
+                if (bags && bags.length > 0) {
+                    let html = `
+                        <table class="data-table" id="${tableType}Table">
+                            <thead>
+                                <tr>
+                                    <th data-sort-key="bag_id">Bag ID <span class="sort-icon">&#9660;</span></th>
+                                    <th data-sort-key="age_hours">Age <span class="sort-icon">&#9660;</span></th>
+                                    <th data-sort-key="${tableType === 'clusterDetail' ? 'wbn_count_for_cluster' : 'wbn_count'}">WBNs <span class="sort-icon">&#9660;</span></th>
+                                    <th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+                    bags.forEach(bag => {
+                        const bagLink = `${BAG_HQ_BASE_URL}${bag.bag_id}`;
+                        const bfsiIcon = bag.is_bfsi ? '<span class="bfsi-icon">$</span>' : '';
+                        let wbnCountDisplay = '';
+
+                        if (tableType === 'clusterDetail') {
+                            wbnCountDisplay = `${bag.wbn_count_for_cluster || 0} for Cluster (out of ${bag.wbn_count_per_bag || 0} total)`;
+                        } else {
+                            wbnCountDisplay = bag.wbn_count || 0;
+                        }
+
+                        html += `
+                                <tr data-bag-id="${bag.bag_id}" data-age-hours="${bag.age_hours}" data-wbn-count="${bag.wbn_count}" data-is-bfsi="${bag.is_bfsi}" data-age-str="${bag.age_str}" data-wbn-count-for-cluster="${bag.wbn_count_for_cluster || ''}" data-wbn-count-per-bag="${bag.wbn_count_per_bag || ''}">
+                                    <td>
+                                        <a href="${bagLink}" target="_blank" class="text-blue-600 hover:underline">
+                                            ${bag.bag_id}${bfsiIcon}
+                                        </a>
+                                    </td>
+                                    <td>${bag.age_str}</td>
+                                    <td>${wbnCountDisplay}</td>
+                                    <td><textarea class="remarks-textarea" data-bag-id="${bag.bag_id}" data-bag-age="${bag.age_str}"></textarea></td>
+                                </tr>`;
+                    });
+                    html += `
+                            </tbody>
+                        </table>`;
+                    targetDiv.innerHTML = html;
+                    setupTableSorting(`${tableType}Table`, bags);
+                    
+                    if (tableType === 'ageGroup') {
+                        copyRemarksAgeGroupBtn.classList.remove('hidden');
+                        copyRemarksAgeGroupBtn.onclick = () => copyTableRemarks(`${tableType}Table`);
+                    } else if (tableType === 'clusterDetail') {
+                        copyRemarksClusterBtn.classList.remove('hidden');
+                        copyRemarksClusterBtn.onclick = () => copyTableRemarks(`${tableType}Table`);
+                    }
+
+                } else {
+                    targetDiv.innerHTML = '<p class="text-gray-600">No bags found in this category matching current filters.</p>';
+                    if (tableType === 'ageGroup') {
+                        copyRemarksAgeGroupBtn.classList.add('hidden');
+                    } else if (tableType === 'clusterDetail') {
+                        copyRemarksClusterBtn.classList.add('hidden');
+                    }
+                }
+            }
+
+            function populateClusterDropdowns(clusterDetails, allUniqueClusters) {
+                clusterSelect.innerHTML = '<option value="">-- Select a Cluster --</option>';
+                const sortedDetailClusterIds = Object.keys(clusterDetails).sort();
+                sortedDetailClusterIds.forEach(clusterId => {
+                    const option = document.createElement('option');
+                    option.value = clusterId;
+                    option.textContent = `${clusterId} (Bags: ${clusterDetails[clusterId].bag_id_count}, Shipments: ${clusterDetails[clusterId].wbn_count})`;
+                    clusterSelect.appendChild(option);
+                });
+
+                clusterMultiSelect.innerHTML = '';
+                const sortedAllUniqueClusters = allUniqueClusters.sort();
+                sortedAllUniqueClusters.forEach(clusterId => {
+                    const option = document.createElement('option');
+                    option.value = clusterId;
+                    option.textContent = clusterId;
+                    clusterMultiSelect.appendChild(option);
+                });
+
+
+                clusterSelect.removeEventListener('change', onClusterSelectChange);
+                clusterSelect.addEventListener('change', onClusterSelectChange);
+                
+                clusterDetailsDiv.innerHTML = '';
+                clusterSummary.classList.add('hidden');
+                copyRemarksClusterBtn.classList.add('hidden');
+            }
+
+            function onClusterSelectChange() {
+                const selectedClusterId = clusterSelect.value;
+                if (selectedClusterId && currentAnalysisData) {
+                    const details = currentAnalysisData.cluster_details[selectedClusterId];
+                    if (details) {
+                        renderBagTable(clusterDetailsDiv, details.bags, 'clusterDetail');
+                        selectedClusterBagsSpan.textContent = details.bag_id_count;
+                        selectedClusterWBNsSpan.textContent = details.wbn_count;
+                        clusterSummary.classList.remove('hidden');
+                        const content = document.getElementById('clusterAnalysisContent');
+                        const header = content.previousElementSibling;
+                        if (!content.classList.contains('expanded')) {
+                            toggleCollapsible({ currentTarget: header });
+                        }
+                    }
+                } else {
+                    clusterDetailsDiv.innerHTML = '';
+                    clusterSummary.classList.add('hidden');
+                    copyRemarksClusterBtn.classList.add('hidden');
+                }
+            }
+
+            function setupTableSorting(tableId, originalData) {
+                const table = document.getElementById(tableId);
+                if (!table) return;
+
+                const headers = table.querySelectorAll('th[data-sort-key]');
+                let sortDirection = {}; 
+
+                headers.forEach(header => {
+                    const sortKey = header.dataset.sortKey;
+                    sortDirection[sortKey] = 'asc';
+
+                    header.addEventListener('click', () => {
+                        headers.forEach(h => {
+                            if (h !== header) {
+                                h.classList.remove('sorted-asc', 'sorted-desc');
+                                h.querySelector('.sort-icon').innerHTML = '&#9660;';
+                            }
+                        });
+
+                        const currentDir = sortDirection[sortKey];
+                        const newDir = currentDir === 'asc' ? 'desc' : 'asc';
+                        sortDirection[sortKey] = newDir;
+
+                        header.classList.remove('sorted-asc', 'sorted-desc');
+                        header.classList.add(`sorted-${newDir}`);
+                        header.querySelector('.sort-icon').innerHTML = newDir === 'asc' ? '&#9650;' : '&#9660;';
+
+                        const sortedData = [...originalData].sort((a, b) => {
+                            let valA = a[sortKey];
+                            let valB = b[sortKey];
+
+                            if (sortKey === 'age_hours' || sortKey === 'wbn_count' || sortKey === 'wbn_count_per_bag' || sortKey === 'wbn_count_for_cluster') {
+                                valA = valA === null ? -Infinity : valA;
+                                valB = valB === null ? -Infinity : valB;
+                                return newDir === 'asc' ? valA - valB : valB - valA;
+                            }
+                            if (typeof valA === 'boolean' && typeof valB === 'boolean') {
+                                return newDir === 'asc' ? (valA === valB ? 0 : (valA ? 1 : -1)) : (valA === valB ? 0 : (valA ? -1 : 1));
+                            }
+                            return newDir === 'asc' ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
+                        });
+                        
+                        const tbody = table.querySelector('tbody');
+                        tbody.innerHTML = ''; 
+                        sortedData.forEach(item => {
+                            const row = tbody.insertRow();
+                            const bagLink = `${BAG_HQ_BASE_URL}${item.bag_id}`;
+                            const bfsiIcon = item.is_bfsi ? '<span class="bfsi-icon">$</span>' : '';
+                            let wbnCountDisplay = '';
+
+                            if (tableId === 'clusterDetailTable') {
+                                wbnCountDisplay = `${item.wbn_count_for_cluster || 0} for Cluster (out of ${item.wbn_count_per_bag || 0} total)`;
+                            } else {
+                                wbnCountDisplay = item.wbn_count || 0;
+                            }
+
+                            row.insertCell().innerHTML = `<a href="${bagLink}" target="_blank" class="text-blue-600 hover:underline">${item.bag_id}${bfsiIcon}</a>`;
+                            row.insertCell().textContent = item.age_str;
+                            row.insertCell().textContent = wbnCountDisplay;
+                            const remarksCell = row.insertCell();
+                            const remarksTextarea = document.createElement('textarea');
+                            remarksTextarea.className = 'remarks-textarea';
+                            remarksTextarea.dataset.bagId = item.bag_id;
+                            remarksTextarea.dataset.bagAge = item.age_str;
+                            remarksCell.appendChild(remarksTextarea);
+
+                            row.classList.add('animate-fadeIn');
+                        });
+                    });
+                });
+            }
+
+            function copyTableRemarks(tableId) {
+                const table = document.getElementById(tableId);
+                if (!table) return;
+
+                let remarksToCopy = [];
+                table.querySelectorAll('tbody tr').forEach(row => {
+                    const bagId = row.dataset.bagId;
+                    const bagAge = row.dataset.ageStr;
+                    const wbnCounts = row.cells[2].textContent;
+                    const remarksTextarea = row.querySelector('.remarks-textarea');
+                    
+                    if (remarksTextarea && remarksTextarea.value.trim() !== '') {
+                        remarksToCopy.push(
+                            `Bag ID: ${bagId}\n` +
+                            `Age: ${bagAge}\n` +
+                            `WBNs: ${wbnCounts}\n` +
+                            `Remarks: ${remarksTextarea.value.trim()}`
+                        );
+                    }
+                });
+
+                if (remarksToCopy.length > 0) {
+                    const combinedRemarks = remarksToCopy.join('\n\n---\n\n');
+                    const tempTextArea = document.createElement('textarea');
+                    tempTextArea.value = combinedRemarks;
+                    document.body.appendChild(tempTextArea);
+                    tempTextArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(tempTextArea);
+                    showMessage(errorMessage, `Copied ${remarksToCopy.length} remark(s) to clipboard!`, false);
+                } else {
+                    showMessage(errorMessage, 'No remarks to copy.', true);
+                }
+            }
+
+            // --- AI Insights Rendering Function ---
+            function renderAIInsights(aiInsights) {
+                let html = '';
+                if (!aiInsights || (Object.keys(aiInsights.critical_clusters).length === 0 && Object.keys(aiInsights.high_priority_bags).length === 0)) {
+                    aiInsightsContentDiv.innerHTML = '<p class="text-gray-600">No significant insights detected for current data and filters.</p>';
+                    return;
+                }
+
+                // Critical Clusters
+                if (Object.keys(aiInsights.critical_clusters).length > 0) {
+                    html += `
+                        <div class="ai-insight-card alert-critical">
+                            <div class="ai-insight-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-alert"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+                            </div>
+                            <div class="ai-insight-content">
+                                <div class="ai-insight-title">Critical Clusters Needing Immediate Attention</div>
+                                <p class="ai-insight-description">These clusters have a high volume of old bags:</p>
+                                <ul class="ai-insight-list">
+                    `;
+                    for (const clusterId in aiInsights.critical_clusters) {
+                        const cluster = aiInsights.critical_clusters[clusterId];
+                        html += `<li><strong>${clusterId}</strong>: ${cluster.bags_count} bags, ${cluster.wbn_count} shipments (Avg Age: ${cluster.avg_age_hours.toFixed(1)} hrs)</li>`;
+                    }
+                    html += `</ul></div></div>`;
+                }
+
+                // High Priority Outlier Bags
+                if (Object.keys(aiInsights.high_priority_bags).length > 0) {
+                    html += `
+                        <div class="ai-insight-card alert-warning">
+                            <div class="ai-insight-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bell-ring"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M17.73 22A2 2 0 0 1 12 22a2 2 0 0 1-5.77-2"/><path d="M9.4 12.6L12 15l2.6-2.4"/></svg>
+                            </div>
+                            <div class="ai-insight-content">
+                                <div class="ai-insight-title">High Priority Outlier Bags</div>
+                                <p class="ai-insight-description">Individual bags with significant ageing and WBN count (>= 5 WBNs):</p>
+                                <ul class="ai-insight-list">
+                    `;
+                    for (const bagId in aiInsights.high_priority_bags) {
+                        const bag = aiInsights.high_priority_bags[bagId];
+                        const bagLink = `${BAG_HQ_BASE_URL}${bag.bag_id}`;
+                        const bfsiIcon = bag.is_bfsi ? '<span class="bfsi-icon">$</span>' : '';
+                        html += `<li><a href="${bagLink}" target="_blank" class="text-blue-600 hover:underline"><strong>${bag.bag_id}</strong>${bfsiIcon}</a>: Age ${bag.age_str}, ${bag.wbn_count} WBNs (Cluster: ${bag.cluster_id || 'UNKNOWN'})</li>`;
+                    }
+                    html += `</ul></div></div>`;
+                }
+
+                aiInsightsContentDiv.innerHTML = html;
+            }
+
+
+            // --- Backend Status Polling ---
+            async function updateBackendStatus() {
+                try {
+                    const response = await fetch(`${BACKEND_BASE_URL}/api/status`); // Changed URL to use BACKEND_BASE_URL
+                    if (response.ok) {
+                        const data = await response.json();
+                        backendStatusIndicator.classList.remove('status-offline');
+                        backendStatusIndicator.classList.add('status-online');
+                        statusText.textContent = 'Online';
+                        versionText.textContent = data.version || 'N/A';
+                        lastAnalysisText.textContent = data.last_analysis_time || 'N/A';
+                        totalAnalysesText.textContent = data.total_analyses || 0;
+                        uptimeText.textContent = data.uptime || 'N/A';
+                    } else {
+                        throw new Error('Backend responded with an error status.');
+                    }
+                } catch (error) {
+                    console.error("Error fetching backend status:", error);
+                    backendStatusIndicator.classList.remove('status-online');
+                    backendStatusIndicator.classList.add('status-offline');
+                    statusText.textContent = 'Offline';
+                    versionText.textContent = 'N/A';
+                    lastAnalysisText.textContent = 'N/A';
+                    uptimeText.textContent = 'N/A';
+                }
+            }
+
+            updateBackendStatus();
+            setInterval(updateBackendStatus, 5000); 
+        });
+    </script>
+</body>
+</html>
