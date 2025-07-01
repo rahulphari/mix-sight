@@ -1,45 +1,45 @@
 # mix_bag_app.py - Backend for Mix Bag Analytics
 
 from flask import Flask, request, jsonify
-from flask_cors import CORS
+# from flask_cors import CORS # No longer needed for this specific CORS method
 import pandas as pd
 import numpy as np
 import io
 import logging
 from datetime import datetime, timedelta
-import os # Added for environment variable access
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = Flask(__name__)
 
-# --- CORS Configuration for Deployment ---
-# Get the allowed origin from an environment variable.
-# On Render, you should set ALLOWED_ORIGIN to your GitHub Pages URL (e.g., 'https://rahulphari.github.io/mix-sight')
-# This setup explicitly allows both the URL with and without a trailing slash.
-frontend_origin_base = os.environ.get('ALLOWED_ORIGIN')
+# --- AGGRESSIVE DEBUGGING CORS Configuration (FORCING HEADERS) ---
+# This method bypasses Flask-CORS's main configuration and manually injects headers.
+# WARNING: This is INSECURE for production as it allows ALL origins ('*').
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*' # Allow all origins
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    print(f"DEBUG: Manually added CORS headers (Access-Control-Allow-Origin: *).") # Debug print to logs
+    return response
 
-allowed_origins_list = []
-if frontend_origin_base:
-    allowed_origins_list.append(frontend_origin_base)
-    # Add the version with a trailing slash as well, just in case the browser sends it that way
-    allowed_origins_list.append(f"{frontend_origin_base}/") 
-    CORS(app, resources={r"/api/*": {"origins": allowed_origins_list}})
-    logging.info(f"CORS enabled for API routes from origins: {allowed_origins_list}")
-    print(f"DEBUG: Flask-CORS configured for origins: {allowed_origins_list}") # Debug print
-else:
-    # Fallback for local development if ALLOWED_ORIGIN is not set
-    # WARNING: Allowing '*' is INSECURE for production. Only use for local development/debugging.
-    CORS(app, resources={r"/api/*": {"origins": "*"}}) 
-    logging.warning("ALLOWED_ORIGIN environment variable not set. CORS configured to allow all origins (DEVELOPMENT MODE ONLY!).")
-    print("DEBUG: ALLOWED_ORIGIN not set, CORS allowing all origins (*)")
-# --- End CORS Configuration ---
+# Explicitly handle OPTIONS requests (preflight) for all API paths.
+# The @app.after_request decorator above will apply CORS headers to these responses too.
+@app.route('/api/<path:path>', methods=['OPTIONS'])
+def handle_options_requests(path):
+    # This route just responds to OPTIONS requests (preflight) with a 200 OK
+    # The actual CORS headers are added by the @app.after_request decorator
+    return jsonify({}), 200
+
+# --- END AGGRESSIVE DEBUGGING CORS Configuration ---
 
 
 # --- Global variables for status tracking ---
 APP_START_TIME = datetime.now()
-BACKEND_VERSION = "1.5.0" # Updated version for enhanced filters and AI insights
+BACKEND_VERSION = "1.5.0"
 TOTAL_ANALYSES_PERFORMED = 0
 LAST_ANALYSIS_TIME = "Never"
 
@@ -114,7 +114,6 @@ def mix_bag_analytics_api():
         except pd.errors.ParserError as e:
             logging.error(f"Parsing error for uploaded CSV file '{file_name}': {e}")
             return jsonify({"error": f"Error parsing uploaded CSV file: {file_name}. Please check file format and headers."}), 400
-        # The problematic 'df' line was here and has been removed.
 
         # Add 'is_bfsi' to required_columns if it exists in the CSV
         required_columns = ['wbn', 'bag_id', 'bag_incoming_time', 'cluster_id']
