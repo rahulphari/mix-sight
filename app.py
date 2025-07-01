@@ -1,13 +1,13 @@
 # mix_bag_app.py - Backend for Mix Bag Analytics
 
 from flask import Flask, request, jsonify
-# from flask_cors import CORS # No longer needed for this specific CORS method
+# from flask_cors import CORS # Removed as we are using a direct header injection method
 import pandas as pd
 import numpy as np
 import io
 import logging
 from datetime import datetime, timedelta
-import os
+import os # Keep this import for potential future environment variable use or local debug prints
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -17,6 +17,7 @@ app = Flask(__name__)
 # --- AGGRESSIVE DEBUGGING CORS Configuration (FORCING HEADERS) ---
 # This method bypasses Flask-CORS's main configuration and manually injects headers.
 # WARNING: This is INSECURE for production as it allows ALL origins ('*').
+# This is used to ensure maximum compatibility for debugging deployment issues.
 @app.after_request
 def add_cors_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*' # Allow all origins
@@ -39,7 +40,7 @@ def handle_options_requests(path):
 
 # --- Global variables for status tracking ---
 APP_START_TIME = datetime.now()
-BACKEND_VERSION = "1.5.0"
+BACKEND_VERSION = "1.5.0" # Updated version for enhanced filters and AI insights
 TOTAL_ANALYSES_PERFORMED = 0
 LAST_ANALYSIS_TIME = "Never"
 
@@ -174,7 +175,7 @@ def mix_bag_analytics_api():
         
         logging.info(f"Bag age info sample after aggregation: {bag_age_info.head().to_dict(orient='records')}")
 
-        # --- Apply Filters to bag_age_info (before calculating overall totals and grouping) ---
+        # --- Apply Filters to bag_age_info (based on FILTERED data) ---
         filtered_bag_age_info = bag_age_info.copy()
 
         # 1. WBN count filters
@@ -378,7 +379,7 @@ def mix_bag_analytics_api():
                 (cluster_summary_for_insights['avg_age_hours'] > critical_cluster_threshold_age) & 
                 ((cluster_summary_for_insights['total_bags'] >= critical_cluster_threshold_bags) | 
                  (cluster_summary_for_insights['total_wbns'] >= critical_cluster_threshold_wbns))
-            ].sort_values(by='avg_age_hours', ascending=[False]) # Sort by age to prioritize oldest
+            ].sort_values(by='avg_age_hours', ascending=False) # Sort by age to prioritize oldest
 
             for idx, row in potential_critical_clusters.iterrows():
                 cluster_id = str(row['cluster_id']) if pd.notna(row['cluster_id']) else 'UNKNOWN'
@@ -435,8 +436,8 @@ def mix_bag_analytics_api():
 @app.route('/api/status', methods=['GET'])
 def get_backend_status():
     uptime_seconds = (datetime.now() - APP_START_TIME).total_seconds()
-    hours = int((uptime_seconds % 3600) // 60)
-    minutes = int(uptime_seconds % 60)
+    hours = int(uptime_seconds // 3600)
+    minutes = int((uptime_seconds % 3600) // 60)
     uptime_str = f"{hours}h {minutes}m"
 
     return jsonify({
@@ -451,9 +452,7 @@ def get_backend_status():
 # This block ensures the Flask app runs locally when you execute this script directly.
 # It will run on http://127.0.0.1:5000 (localhost:5000).
 if __name__ == '__main__':
-    # When running locally, if ALLOWED_ORIGIN is not set as an environment variable,
-    # CORS will default to allowing all origins (for easier local testing).
-    # You can also explicitly set it for local testing like:
-    # os.environ['ALLOWED_ORIGIN'] = 'http://127.0.0.1:5500' # If your frontend is on Live Server on port 5500
-    print(f"DEBUG LOCAL: Starting Flask app. ALLOWED_ORIGIN currently set to: {os.environ.get('ALLOWED_ORIGIN', 'Not Set, defaulting to * for CORS')}")
+    # When running locally, the CORS headers will be added by @app.after_request
+    # No need to set ALLOWED_ORIGIN environment variable for local testing with this aggressive CORS.
+    print(f"DEBUG LOCAL: Starting Flask app with aggressive CORS. This is for debugging only!")
     app.run(debug=True, port=5000)
