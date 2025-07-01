@@ -14,20 +14,23 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 app = Flask(__name__)
 
-# --- NEW/UPDATED CORS Configuration ---
+# --- NEW/UPDATED CORS Configuration to handle trailing slash ---
 # Get the allowed origin from an environment variable.
 # On Render, you set ALLOWED_ORIGIN to 'https://rahulphari.github.io/mix-sight' (your GitHub Pages URL without trailing slash)
-# For local testing, you might use 'http://127.0.0.1:5000' or your frontend's local development server URL (e.g., 'http://127.0.0.1:5500')
-# if you are running your frontend with a tool like Live Server.
-frontend_origin = os.environ.get('ALLOWED_ORIGIN')
+# We will explicitly allow both versions (with and without trailing slash)
+frontend_origin_base = os.environ.get('ALLOWED_ORIGIN')
 
-if frontend_origin:
-    CORS(app, resources={r"/api/*": {"origins": frontend_origin}})
-    logging.info(f"CORS enabled for API routes from origin: {frontend_origin}")
-    print(f"DEBUG: Flask-CORS configured for origin: {frontend_origin}") # Add this print for debugging
+allowed_origins_list = []
+if frontend_origin_base:
+    allowed_origins_list.append(frontend_origin_base)
+    # Add the version with a trailing slash as well, just in case the browser sends it that way
+    allowed_origins_list.append(f"{frontend_origin_base}/") 
+
+    CORS(app, resources={r"/api/*": {"origins": allowed_origins_list}})
+    logging.info(f"CORS enabled for API routes from origins: {allowed_origins_list}")
+    print(f"DEBUG: Flask-CORS configured for origins: {allowed_origins_list}") # Debug print
 else:
     # Fallback for local development if ALLOWED_ORIGIN is not set
-    # Or, if you want stricter local testing, remove this else block
     CORS(app, resources={r"/api/*": {"origins": "*"}}) # Allow all origins for local dev if env var is missing
     logging.warning("ALLOWED_ORIGIN environment variable not set. CORS configured to allow all origins (DEVELOPMENT MODE ONLY!).")
     print("DEBUG: ALLOWED_ORIGIN not set, CORS allowing all origins (*)")
@@ -36,7 +39,7 @@ else:
 
 # --- Global variables for status tracking ---
 APP_START_TIME = datetime.now()
-BACKEND_VERSION = "1.5.0" # Updated version for enhanced filters and AI insights
+BACKEND_VERSION = "1.5.0"
 TOTAL_ANALYSES_PERFORMED = 0
 LAST_ANALYSIS_TIME = "Never"
 
@@ -449,6 +452,6 @@ def get_backend_status():
 # It will run on http://127.0.0.1:5000 (localhost:5000).
 # In production (e.g., Render), gunicorn will call `app:app` directly, ignoring this `if __name__` block.
 if __name__ == '__main__':
-    # You might temporarily set ALLOWED_ORIGIN here for local testing if needed, e.g.:
+    # For local testing, you might temporarily set ALLOWED_ORIGIN here if needed, e.g.:
     # os.environ['ALLOWED_ORIGIN'] = 'http://127.0.0.1:5500' # If your frontend is on Live Server on port 5500
     app.run(debug=True, port=5000)
