@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 # import os # Removed as it's not used in this version for environment variables
 
 # Configure logging for better visibility into application behavior
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicCon fig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = Flask(__name__)
 # Configure CORS for online deployment.
