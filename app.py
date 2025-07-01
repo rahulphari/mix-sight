@@ -1,4 +1,4 @@
-# mix_bag_app.py - Backend for Mix Bag Analytic
+# mix_bag_app.py - Backend for Mix Bag Analytics
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -14,27 +14,13 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 app = Flask(__name__)
 
-# --- NEW/UPDATED CORS Configuration to handle trailing slash ---
-# Get the allowed origin from an environment variable.
-# On Render, you set ALLOWED_ORIGIN to 'https://rahulphari.github.io/mix-sight' (your GitHub Pages URL without trailing slash)
-# We will explicitly allow both versions (with and without trailing slash)
-frontend_origin_base = os.environ.get('ALLOWED_ORIGIN')
-
-allowed_origins_list = []
-if frontend_origin_base:
-    allowed_origins_list.append(frontend_origin_base)
-    # Add the version with a trailing slash as well, just in case the browser sends it that way
-    allowed_origins_list.append(f"{frontend_origin_base}/") 
-
-    CORS(app, resources={r"/api/*": {"origins": allowed_origins_list}})
-    logging.info(f"CORS enabled for API routes from origins: {allowed_origins_list}")
-    print(f"DEBUG: Flask-CORS configured for origins: {allowed_origins_list}") # Debug print
-else:
-    # Fallback for local development if ALLOWED_ORIGIN is not set
-    CORS(app, resources={r"/api/*": {"origins": "*"}}) # Allow all origins for local dev if env var is missing
-    logging.warning("ALLOWED_ORIGIN environment variable not set. CORS configured to allow all origins (DEVELOPMENT MODE ONLY!).")
-    print("DEBUG: ALLOWED_ORIGIN not set, CORS allowing all origins (*)")
-# --- END NEW/UPDATED CORS Configuration ---
+# --- TEMPORARY CORS Configuration for Debugging ---
+# WARNING: DO NOT USE IN PRODUCTION! This opens your API to all origins.
+# This is a temporary step to definitively confirm if CORS is the blocking issue.
+CORS(app, resources={r"/api/*": {"origins": "*"}}) # Allow ALL origins
+logging.warning("CORS configured to allow ALL origins (DEBUGGING MODE ONLY!). Remove this for production!")
+print("DEBUG: CORS allowing ALL origins (*). REMOVE THIS FOR PRODUCTION!")
+# --- END TEMPORARY CORS Configuration ---
 
 
 # --- Global variables for status tracking ---
