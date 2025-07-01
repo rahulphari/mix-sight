@@ -7,19 +7,32 @@ import numpy as np
 import io
 import logging
 from datetime import datetime, timedelta
-import os # NEW: Import os for environment variables
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = Flask(__name__)
 
-# Configure CORS: Allow requests from your GitHub Pages URL (set as environment variable on Render)
-# For local testing, 'http://127.0.0.1:5000' or your frontend's local development server URL can be used as default.
-# IMPORTANT: You MUST set the ALLOWED_ORIGIN environment variable on Render to your GitHub Pages URL!
-allowed_origin = os.environ.get('ALLOWED_ORIGIN', 'http://127.0.0.1:5000') # Default for local testing if not set
-logging.info(f"CORS allowed origin configured as: {allowed_origin}")
-CORS(app, resources={r"/api/*": {"origins": allowed_origin}}) # Enable CORS for development/production
+# --- NEW/UPDATED CORS Configuration ---
+# Get the allowed origin from an environment variable.
+# On Render, you set ALLOWED_ORIGIN to 'https://rahulphari.github.io/mix-sight' (your GitHub Pages URL without trailing slash)
+# For local testing, you might use 'http://127.0.0.1:5000' or your frontend's local development server URL (e.g., 'http://127.0.0.1:5500')
+# if you are running your frontend with a tool like Live Server.
+frontend_origin = os.environ.get('ALLOWED_ORIGIN')
+
+if frontend_origin:
+    CORS(app, resources={r"/api/*": {"origins": frontend_origin}})
+    logging.info(f"CORS enabled for API routes from origin: {frontend_origin}")
+    print(f"DEBUG: Flask-CORS configured for origin: {frontend_origin}") # Add this print for debugging
+else:
+    # Fallback for local development if ALLOWED_ORIGIN is not set
+    # Or, if you want stricter local testing, remove this else block
+    CORS(app, resources={r"/api/*": {"origins": "*"}}) # Allow all origins for local dev if env var is missing
+    logging.warning("ALLOWED_ORIGIN environment variable not set. CORS configured to allow all origins (DEVELOPMENT MODE ONLY!).")
+    print("DEBUG: ALLOWED_ORIGIN not set, CORS allowing all origins (*)")
+# --- END NEW/UPDATED CORS Configuration ---
+
 
 # --- Global variables for status tracking ---
 APP_START_TIME = datetime.now()
@@ -362,7 +375,7 @@ def mix_bag_analytics_api():
                 (cluster_summary_for_insights['avg_age_hours'] > critical_cluster_threshold_age) & 
                 ((cluster_summary_for_insights['total_bags'] >= critical_cluster_threshold_bags) | 
                  (cluster_summary_for_insights['total_wbns'] >= critical_cluster_threshold_wbns))
-            ].sort_values(by='avg_age_hours', ascending=False) # Sort by age to prioritize oldest
+            ].sort_values(by='avg_age_hours', ascending=[False]) # Sort by age to prioritize oldest
 
             for idx, row in potential_critical_clusters.iterrows():
                 cluster_id = str(row['cluster_id']) if pd.notna(row['cluster_id']) else 'UNKNOWN'
@@ -436,6 +449,6 @@ def get_backend_status():
 # It will run on http://127.0.0.1:5000 (localhost:5000).
 # In production (e.g., Render), gunicorn will call `app:app` directly, ignoring this `if __name__` block.
 if __name__ == '__main__':
-    # You might need to set ALLOWED_ORIGIN locally if your frontend runs on a different port, e.g.:
-    # os.environ['ALLOWED_ORIGIN'] = 'http://127.0.0.1:5500' 
+    # You might temporarily set ALLOWED_ORIGIN here for local testing if needed, e.g.:
+    # os.environ['ALLOWED_ORIGIN'] = 'http://127.0.0.1:5500' # If your frontend is on Live Server on port 5500
     app.run(debug=True, port=5000)
