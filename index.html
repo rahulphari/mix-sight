@@ -267,6 +267,19 @@
             <p class="text-blue-100 text-lg">Gain insights into your mix bag ageing and pending clusters</p>
         </div>
 
+        <div class="card">
+            <h2 class="section-title flex items-center">
+                <span class="status-indicator" id="backendStatusIndicator"></span>
+                Backend Status ©Rh
+            </h2>
+            <div id="scriptStatus" class="text-gray-700 text-sm">
+                <p>Status: <span id="statusText">Checking...</span></p>
+                <p>Version: <span id="versionText">N/A</span></p>
+                <p>Last Analysis: <span id="lastAnalysisText">N/A</span></p>
+                <p>Total Analyses: <span id="totalAnalysesText">N/A</span></p>
+                <p>Uptime: <span id="uptimeText">N/A</span></p>
+            </div>
+        </div>
         <div id="uploadSection" class="upload-section">
             <label for="mixBagFileUpload" class="block text-blue-800 text-lg font-bold mb-3">
                 Upload Mix Bag GI Pending File (CSV)
@@ -288,23 +301,24 @@
             </button>
         </div>
 
+        <div id="processingStatusBar" class="hidden bg-blue-100 border border-blue-400 text-blue-800 px-4 py-3 rounded-lg relative mb-8 shadow-md">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span id="statusBarMessage" class="font-semibold text-sm">Preparing for analysis...</span>
+                </div>
+                <div id="statusBarEta" class="text-xs text-blue-700"></div>
+            </div>
+            <div class="w-full bg-blue-200 rounded-full h-1.5 mt-2 overflow-hidden">
+                <div id="statusBarProgress" class="bg-blue-600 h-1.5 rounded-full" style="width: 0%"></div>
+            </div>
+        </div>
         <div id="resultsDisplay" class="hidden">
             <div class="flex flex-col lg:flex-row lg:space-x-6">
                 <div class="w-full lg:w-1/2">
-                    <div class="card">
-                        <h2 class="section-title flex items-center">
-                            <span class="status-indicator" id="backendStatusIndicator"></span>
-                            Backend Status ©Rh
-                        </h2>
-                        <div id="scriptStatus" class="text-gray-700 text-sm">
-                            <p>Status: <span id="statusText">Checking...</span></p>
-                            <p>Version: <span id="versionText">N/A</span></p>
-                            <p>Last Analysis: <span id="lastAnalysisText">N/A</span></p>
-                            <p>Total Analyses: <span id="totalAnalysesText">N/A</span></p>
-                            <p>Uptime: <span id="uptimeText">N/A</span></p>
-                        </div>
-                    </div>
-
                     <div class="card">
                         <h2 class="section-title">MixBag Summary</h2>
                         <div id="allAgeGroupCard" class="ageing-category-card bg-green-category mb-4" data-age-category="All">
@@ -489,8 +503,7 @@
             // AI Insights
             const aiInsightsContentDiv = document.getElementById('aiInsightsContent');
 
-
-            // Backend Status Elements
+            // Backend Status Elements (These are now always visible)
             const backendStatusIndicator = document.getElementById('backendStatusIndicator');
             const statusText = document.getElementById('statusText');
             const versionText = document.getElementById('versionText');
@@ -498,12 +511,19 @@
             const totalAnalysesText = document.getElementById('totalAnalysesText');
             const uptimeText = document.getElementById('uptimeText');
 
+            // NEW: Processing Status Bar Elements
+            const processingStatusBar = document.getElementById('processingStatusBar');
+            const statusBarMessage = document.getElementById('statusBarMessage');
+            const statusBarEta = document.getElementById('statusBarEta');
+            const statusBarProgress = document.getElementById('statusBarProgress');
+
 
             const BAG_HQ_BASE_URL = "https://hq.delhivery.com/bag/";
 
             let uploadedCsvContent = null;
             let uploadedFileName = null;
             let currentAnalysisData = null; // Stores the full analysis response
+            let processingInterval; // To hold the setInterval for animation
 
             function showMessage(element, message, isError = false) {
                 element.textContent = message;
@@ -516,6 +536,50 @@
                     element.classList.remove('text-red-600');
                 }
             }
+
+            // NEW: Function to manage the processing status bar
+            function showProcessingStatus(message, eta = '', progress = 0) {
+                processingStatusBar.classList.remove('hidden');
+                statusBarMessage.textContent = message;
+                statusBarEta.textContent = eta;
+                statusBarProgress.style.width = `${progress}%`;
+
+                // Simple animation for progress bar and text
+                let dots = 0;
+                let currentProgress = 0;
+                clearInterval(processingInterval); // Clear any existing interval
+
+                processingInterval = setInterval(() => {
+                    dots = (dots + 1) % 4;
+                    const dotStr = '.'.repeat(dots);
+                    
+                    // Basic progress animation (not real, just visual)
+                    currentProgress += 5;
+                    if (currentProgress > 95) currentProgress = 5; // Reset or slow down near end
+                    statusBarProgress.style.width = `${currentProgress}%`;
+
+                    // Update message for visual feedback
+                    if (message.includes('Uploading')) {
+                        statusBarMessage.textContent = `Uploading file${dotStr}`;
+                    } else if (message.includes('Processing')) {
+                        statusBarMessage.textContent = `Processing data${dotStr}`;
+                    } else if (message.includes('Generating')) {
+                        statusBarMessage.textContent = `Generating insights${dotStr}`;
+                    } else {
+                         statusBarMessage.textContent = `${message}${dotStr}`;
+                    }
+
+                }, 500); // Update every 0.5 seconds
+            }
+
+            function hideProcessingStatus() {
+                processingStatusBar.classList.add('hidden');
+                clearInterval(processingInterval); // Stop the animation
+                statusBarProgress.style.width = '0%'; // Reset progress
+                statusBarMessage.textContent = '';
+                statusBarEta.textContent = '';
+            }
+
 
             function toggleCollapsible(event) {
                 const targetId = event.currentTarget.dataset.target;
@@ -593,6 +657,9 @@
                 });
                 document.querySelectorAll('.collapsible-header .arrow-icon').forEach(icon => icon.innerHTML = '&#9660;');
 
+                // NEW: Show processing status
+                showProcessingStatus('Uploading file...', '...'); // Initial message
+
                 try {
                     const payload = {
                         file_name: fileName,
@@ -605,7 +672,11 @@
                     };
                     console.log("Sending payload:", payload);
 
-                    const response = await fetch(`${BACKEND_BASE_URL}/api/mix-bag-analytics`, { // Changed URL to use BACKEND_BASE_URL
+                    // Simulate some time for upload/initial processing
+                    await new Promise(resolve => setTimeout(resolve, 500)); 
+                    showProcessingStatus('Processing data...', 'ETA: ~10-30s'); // Update message
+
+                    const response = await fetch(`${BACKEND_BASE_URL}/api/mix-bag-analytics`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
@@ -627,11 +698,15 @@
                     resultsDisplay.classList.remove('hidden');
                     setupCollapsibleHeaders();
                     showMessage(errorMessage, `Analysis complete for "${fileName}".`, false);
+                    showProcessingStatus('Analysis Complete!', 'Done!'); // Final success message
+                    setTimeout(hideProcessingStatus, 3000); // Hide after a few seconds
 
                 }
                  catch (error) {
                     console.error("Error during analysis:", error);
                     showMessage(errorMessage, `Error: ${error.message}`, true);
+                    showProcessingStatus(`Analysis Failed: ${error.message}`, 'Please try again.', 0); // Error message
+                    setTimeout(hideProcessingStatus, 5000); // Hide error after longer delay
                 } finally {
                     uploadAndAnalyzeButton.disabled = false;
                     applyFiltersButton.disabled = false;
@@ -1067,7 +1142,7 @@
             // --- Backend Status Polling ---
             async function updateBackendStatus() {
                 try {
-                    const response = await fetch(`${BACKEND_BASE_URL}/api/status`); // Changed URL to use BACKEND_BASE_URL
+                    const response = await fetch(`${BACKEND_BASE_URL}/api/status`);
                     if (response.ok) {
                         const data = await response.json();
                         backendStatusIndicator.classList.remove('status-offline');
@@ -1091,6 +1166,7 @@
                 }
             }
 
+            // Initial status update and then poll every 5 seconds
             updateBackendStatus();
             setInterval(updateBackendStatus, 5000); 
         });
