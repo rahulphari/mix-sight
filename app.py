@@ -1,4 +1,4 @@
-# mix_bag_app.py - Backend for Mix Bag Analytics
+# mix_bag_app.py - Backend for Mix Bag Analytics (Deployment Ready)
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -12,11 +12,11 @@ from datetime import datetime, timedelta
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = Flask(__name__)
-CORS(app) # Enable CORS for development
+CORS(app) # Enable CORS for different domains (e.g., github.io and onrender.com)
 
 # --- Global variables for status tracking ---
 APP_START_TIME = datetime.now()
-BACKEND_VERSION = "1.8.0" # Version with Ageing Group fix
+BACKEND_VERSION = "1.9.0_DEPLOYMENT" # Version ready for deployment
 TOTAL_ANALYSES_PERFORMED = 0
 LAST_ANALYSIS_TIME = "Never"
 
@@ -191,6 +191,5 @@ def get_backend_status():
         "last_analysis_time": LAST_ANALYSIS_TIME, "total_analyses": TOTAL_ANALYSES_PERFORMED
     }), 200
 
-
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+# The if __name__ == '__main__': block has been removed for production.
+# A production server like Gunicorn will run the 'app' object directly.
