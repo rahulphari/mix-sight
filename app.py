@@ -138,7 +138,7 @@ def mix_bag_analytics_api():
                     "bag_id_count": int(row['bag_id_count']), "wbn_count": int(row['wbn_count']), "bags": formatted_bags
                 }
 
-        # *** FIX: Restored Ageing Group Calculation Logic ***
+        # *** Corrected Ageing Group Calculation Logic ***
         ageing_groups = {
             "0 to 1 hr": {"bag_id_count": 0, "wbn_count": 0, "bags": []}, "1 to 2 hr": {"bag_id_count": 0, "wbn_count": 0, "bags": []},
             "2 to 2.5 hrs": {"bag_id_count": 0, "wbn_count": 0, "bags": []}, "More than 2.5 hrs": {"bag_id_count": 0, "wbn_count": 0, "bags": []}
