@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mix Bag Analytics Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Roboto', sans-serif; background-color: #f0f2f5; }
         .container { max-width: 1600px; margin: 1.5rem auto; padding: 1.5rem; }
         .dashboard-header {
-            background: linear-gradient(135deg, #4b5563, #1f2937); color: white; padding: 2.5rem;
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white; padding: 2rem;
             border-radius: 0.75rem; margin-bottom: 2rem;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
@@ -18,15 +18,34 @@
             background-color: #ffffff; border-radius: 0.75rem; padding: 1.5rem;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
-        .section-title { @apply text-xl font-bold text-gray-800 mb-4 border-b pb-2; }
-        .collapsible-header { @apply text-xl font-bold text-gray-700 cursor-pointer flex justify-between items-center hover:text-blue-700 transition-colors; }
-        .collapsible-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
-        .collapsible-content.open { max-height: 1000px; }
+        .section-title {
+            @apply text-xl font-bold text-gray-800 mb-4 border-b pb-2;
+        }
+        .collapsible-header {
+            @apply text-xl font-bold text-gray-700 cursor-pointer flex justify-between items-center hover:text-blue-700 transition-colors;
+        }
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .collapsible-content.open {
+            max-height: 1000px; /* Adjust as needed */
+        }
         .data-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-        .data-table th, .data-table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-size: 0.875rem; }
-        .data-table th { background-color: #f9fafb; font-weight: 500; }
+        .data-table th, .data-table td {
+            padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-size: 0.875rem;
+        }
+        .data-table th { background-color: #f9fafb; font-weight: 500; cursor: pointer; position: relative; }
+        .data-table th .sort-icon { opacity: 0.4; }
+        .data-table th.sorted-asc .sort-icon, .data-table th.sorted-desc .sort-icon { opacity: 1; color: #3b82f6; }
+        .data-table th.sorted-desc .sort-icon { transform: rotate(180deg); }
+        .data-table tbody tr:hover { background-color: #f0f8ff; }
         .clickable-row { cursor: pointer; }
-        .ageing-category-card { @apply p-4 rounded-lg shadow-sm border flex flex-col justify-between items-center text-center transition duration-300 ease-in-out transform hover:-translate-y-1 cursor-pointer; }
+
+        .ageing-category-card {
+            @apply p-4 rounded-lg shadow-sm border flex flex-col justify-between items-center text-center transition duration-300 ease-in-out transform hover:-translate-y-1 cursor-pointer;
+        }
         .ageing-category-card.bg-blue-category { background-color: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
         .ageing-category-card.bg-orange-category { background-color: #fff7ed; border-color: #fed7aa; color: #c2410c; }
         .ageing-category-card.bg-red-category { background-color: #fee2e2; border-color: #fca5a5; color: #991b1b; }
@@ -34,82 +53,46 @@
         .ageing-category-title { @apply text-lg font-semibold mb-2; }
         .ageing-counts { @apply text-base; }
         .ageing-counts strong { @apply text-3xl font-bold; }
+
         .bfsi-icon { font-size: 0.7em; vertical-align: super; margin-left: 2px; color: #0d9488; }
         .remarks-textarea { width: 100%; min-height: 60px; padding: 8px; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem; resize: vertical; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); }
-        .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; }
-        .status-dot.bg-green-500, .status-dot.bg-yellow-500 { animation: pulse 2s infinite; }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="dashboard-header text-center relative">
-            <h1 class="text-4xl font-bold tracking-tight">Mix Bag Analytics Co-Pilot</h1>
-            <p class="text-gray-300 text-lg mt-2">Unlock real-time insights from your pending bag data</p>
+            <h1 class="text-4xl font-bold">Mix Bag Analytics Dashboard</h1>
+            <p class="text-blue-200 text-lg">Insights into mix bag ageing and pending clusters</p>
+             <button id="exportButton" class="hidden absolute top-4 right-4 bg-white/20 text-white text-xs font-bold py-2 px-4 rounded-full hover:bg-white/30 transition-all">
+                Export for Offline Use
+            </button>
         </div>
 
-        <div class="card mb-6 bg-gray-50 border border-gray-200">
-            <div class="flex items-center justify-between">
-                <div id="serverStatus" class="flex items-center space-x-2 text-sm">
-                    <span class="status-dot bg-yellow-500"></span>
-                    <span class="font-semibold text-gray-700">Server Status:</span>
-                    <span class="text-gray-600">Checking...</span>
-                </div>
-                <div class="text-xs text-gray-500 text-right">
-                    <p><strong>Note:</strong> This is a beta deployment hosted on a personal server with limited bandwidth.</p>
-                    <p>The server may go offline after periods of inactivity. Please refresh if you see an error.</p>
-                </div>
-            </div>
-        </div>
-        
         <div id="uploadSection" class="card mb-6">
+            <label for="mixBagFileUpload" class="block text-gray-700 text-sm font-medium mb-2">
+                Upload Mix Bag GI Pending File (CSV)
+            </label>
             <div class="flex items-center space-x-4">
                 <input type="file" id="mixBagFileUpload" name="mixBagFileUpload" accept=".csv"
                        class="block w-full text-sm text-gray-500
                               file:mr-4 file:py-2 file:px-4
                               file:rounded-lg file:border-0
                               file:text-sm file:font-semibold
-                              file:bg-blue-600 file:text-white
-                              hover:file:bg-blue-700
-                              border border-gray-300 rounded-lg cursor-pointer">
+                              file:bg-blue-50 file:text-blue-700
+                              hover:file:bg-blue-100
+                              border border-gray-300 rounded-lg cursor-pointer"
+                       required>
                 <button id="uploadAndAnalyzeButton"
-                        class="bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:shadow-lg transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-700">
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:shadow-lg transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                     Analyze
                 </button>
             </div>
-            <p class="text-xs text-gray-500 mt-3">
-                For accurate results, download the latest GI PENDING file from 
-                <a href="https://eye.delhivery.com/#/dashboard?tab=mixed-bags" target="_blank" class="text-blue-600 hover:underline">Delhivery Eye (Mixed-Bags Tab)</a>.
-            </p>
             <div id="messageArea" class="mt-4 text-center"></div>
-        </div>
-
-        <div id="welcomeSection" class="card mb-6">
-            <h2 class="text-2xl font-bold text-center text-gray-800 mb-4">How It Works</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center mt-8">
-                <div class="p-4">
-                    <div class="text-5xl mb-4">📊</div>
-                    <h3 class="font-bold text-lg">Instant Summary</h3>
-                    <p class="text-sm text-gray-600">Get a live pulse on pending bags and shipments, neatly grouped by age and cluster.</p>
-                </div>
-                <div class="p-4">
-                    <div class="text-5xl mb-4">🔍</div>
-                    <h3 class="font-bold text-lg">Deep Dive</h3>
-                    <p class="text-sm text-gray-600">Click on any category or cluster to instantly filter and view a detailed list of the underlying bags.</p>
-                </div>
-                 <div class="p-4">
-                    <div class="text-5xl mb-4">🪄</div>
-                    <h3 class="font-bold text-lg">Magic Filter</h3>
-                    <p class="text-sm text-gray-600">Create custom rules to slice and dice your data for targeted analysis and reporting.</p>
-                </div>
-            </div>
         </div>
 
         <div id="resultsDisplay" class="hidden space-y-6">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Left Column -->
                 <div class="space-y-6">
                     <div class="card">
                         <h2 class="section-title">MixBag Summary</h2>
@@ -122,6 +105,7 @@
                         </div>
                         <div id="ageingCategories" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                     </div>
+                     <!-- Magic Filter Section -->
                     <div class="card">
                         <h3 class="text-lg font-bold">🪄 Magic Filter</h3>
                         <div class="my-4">
@@ -141,6 +125,8 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Right Column -->
                 <div class="card flex flex-col">
                     <h2 class="section-title">Cluster Pending Summary</h2>
                     <div id="clusterSummaryList" class="flex-grow max-h-[520px] overflow-y-auto pr-2">
@@ -148,6 +134,7 @@
                     </div>
                 </div>
             </div>
+           
             <div class="card">
                 <h3 class="collapsible-header" data-target="detailViewContent">
                     <span id="detailViewTitle">Detailed Bag List</span>
@@ -180,8 +167,7 @@
             const uploadAndAnalyzeButton = document.getElementById('uploadAndAnalyzeButton');
             const resultsDisplay = document.getElementById('resultsDisplay');
             const messageArea = document.getElementById('messageArea');
-            const welcomeSection = document.getElementById('welcomeSection');
-            const serverStatusDiv = document.getElementById('serverStatus');
+            const exportButton = document.getElementById('exportButton');
 
             // --- Data Display Elements ---
             const ageingCategoriesDiv = document.getElementById('ageingCategories');
@@ -202,42 +188,33 @@
             const applyMagicFilterBtn = document.getElementById('apply-magic-filter-btn');
 
             // --- App State ---
-            const API_URL = 'https://mix-sight.onrender.com';
             const BAG_HQ_BASE_URL = "https://hq.delhivery.com/bag/";
             let uploadedCsvContent = null;
             let uploadedFileName = null;
-            window.currentAnalysisData = null;
+            window.currentAnalysisData = null; // Use window scope for broader access
 
-            // --- Magic Filter Configuration ---
+            // --- Magic Filter Configuration (Corrected) ---
             const fields = {
-                'Bag ID': 'bag_id', 'Cluster ID': 'cluster_id', 'WBN Count': 'wbn_count',
-                'Age (Hours)': 'age_hours', 'Ageing Bracket': 'age_str', 'BFSI Status': 'is_bfsi'
+                'Bag ID': 'bag_id',
+                'Cluster ID': 'cluster_id',
+                'WBN Count': 'wbn_count',
+                'Age (Hours)': 'age_hours',
+                'Ageing Bracket': 'age_str',
+                'BFSI Status': 'is_bfsi'
             };
             const operators = {
                 'Text': [ {val:'is', lbl:'is'}, {val:'is not', lbl:'is not'}, {val:'contains', lbl:'contains'} ],
                 'Numeric': [ {val:'>', lbl:'>'}, {val:'<', lbl:'<'}, {val:'==', lbl:'='}, {val:'>=', lbl:'>='}, {val:'<=', lbl:'<='} ]
             };
 
-            // --- Server Status Check ---
-            async function checkServerStatus() {
-                try {
-                    const response = await fetch(`${API_URL}/api/status`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        serverStatusDiv.innerHTML = `
-                            <span class="status-dot bg-green-500"></span>
-                            <span class="font-semibold text-gray-700">Server Status:</span>
-                            <span class="text-green-700 font-bold">Online</span>
-                            <span class="text-gray-500 text-xs">(v${data.version})</span>`;
-                    } else {
-                        throw new Error('Server responded with an error');
-                    }
-                } catch (error) {
-                    serverStatusDiv.innerHTML = `
-                        <span class="status-dot bg-red-500"></span>
-                        <span class="font-semibold text-gray-700">Server Status:</span>
-                        <span class="text-red-700 font-bold">Offline</span>`;
-                }
+            // --- Initial Setup ---
+            if (window.embeddedData) {
+                document.getElementById('uploadSection').style.display = 'none';
+                if(exportButton) exportButton.style.display = 'none';
+                
+                window.currentAnalysisData = window.embeddedData;
+                uploadedFileName = 'offline data';
+                renderAll(window.currentAnalysisData);
             }
 
             // --- Core Functions ---
@@ -273,10 +250,11 @@
                 if(fileUploadInput) fileUploadInput.disabled = true;
                 showMessage(messageArea, 'Analyzing... Please wait.', false);
                 resultsDisplay.classList.add('hidden');
+                if(exportButton) exportButton.classList.add('hidden');
                 
                 try {
                     const payload = { file_name: fileName, csv_content: csvContent };
-                    const response = await fetch(`${API_URL}/api/mix-bag-analytics`, {
+                    const response = await fetch('http://127.0.0.1:5000/api/mix-bag-analytics', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
@@ -290,7 +268,7 @@
                     const data = await response.json();
                     window.currentAnalysisData = data;
                     renderAll(data);
-                    welcomeSection.classList.add('hidden'); // Hide welcome section on success
+                    if(exportButton) exportButton.classList.remove('hidden');
 
                 } catch (error) {
                     showMessage(messageArea, `Error: ${error.message}`, true);
@@ -301,23 +279,30 @@
             }
             
             function renderAll(data) {
+                // 1. Create a mapping from bag_id to cluster_id for data enrichment.
                 const bagIdToClusterIdMap = new Map();
                 if (data.cluster_details) {
                     for (const clusterId in data.cluster_details) {
                         const cluster = data.cluster_details[clusterId];
                         if (cluster.bags) {
                             cluster.bags.forEach(bag => {
-                                if(bag.bag_id) { bagIdToClusterIdMap.set(bag.bag_id, clusterId); }
+                                if(bag.bag_id) {
+                                   bagIdToClusterIdMap.set(bag.bag_id, clusterId);
+                                }
                             });
                         }
                     }
                 }
 
-                data.detailed_data = Object.values(data.ageing_groups).flatMap(g => g.bags).map(bag => ({
-                    ...bag,
-                    cluster_id: bagIdToClusterIdMap.get(bag.bag_id) || 'N/A'
-                }));
+                // 2. Create the master detailed_data list and enrich it with the cluster_id.
+                data.detailed_data = Object.values(data.ageing_groups).flatMap(g => g.bags).map(bag => {
+                    return {
+                        ...bag,
+                        cluster_id: bagIdToClusterIdMap.get(bag.bag_id) || 'N/A' // Add cluster_id to each bag
+                    };
+                });
 
+                // 3. Continue with the rest of the rendering
                 renderAgeingAnalysis(data.ageing_groups, data.total_pending_bags, data.total_pending_shipments);
                 renderClusterSummaryTable(data.cluster_details);
                 resultsDisplay.classList.remove('hidden');
@@ -347,14 +332,23 @@
                 const updateOperatorsAndValue = () => {
                     const selectedField = fieldSelect.value;
                     const isNumeric = selectedField === 'age_hours' || selectedField === 'wbn_count';
-                    opSelect.innerHTML = (isNumeric ? operators.Numeric : operators.Text).map(op => `<option value="${op.val}">${op.lbl}</option>`).join('');
+                    
+                    opSelect.innerHTML = (isNumeric ? operators.Numeric : operators.Text)
+                        .map(op => `<option value="${op.val}">${op.lbl}</option>`).join('');
+
                     const uniqueValues = [...new Set(window.currentAnalysisData.detailed_data.map(item => item[selectedField]).filter(val => val !== null && val !== undefined))];
+                    
                     if (!isNumeric && (selectedField === 'age_str' || selectedField === 'is_bfsi' || selectedField === 'cluster_id')) {
-                        valContainer.innerHTML = `<input name="value" list="list-${ruleId}" class="p-2 border rounded-md w-full" placeholder="Enter value..."><datalist id="list-${ruleId}">${uniqueValues.map(v => `<option value="${v}"></option>`).join('')}</datalist>`;
+                        valContainer.innerHTML = `
+                            <input name="value" list="list-${ruleId}" class="p-2 border rounded-md w-full" placeholder="Enter value...">
+                            <datalist id="list-${ruleId}">
+                                ${uniqueValues.map(v => `<option value="${v}"></option>`).join('')}
+                            </datalist>`;
                     } else {
                         valContainer.innerHTML = `<input name="value" type="${isNumeric ? 'number' : 'text'}" class="p-2 border rounded-md w-full" placeholder="Enter value...">`;
                     }
                 };
+
                 fieldSelect.addEventListener('change', updateOperatorsAndValue);
                 ruleDiv.querySelector('button').addEventListener('click', () => ruleDiv.remove());
                 updateOperatorsAndValue();
@@ -367,7 +361,9 @@
                     const field = ruleDiv.querySelector('select[name="field"]').value;
                     const operator = ruleDiv.querySelector('select[name="operator"]').value;
                     const value = ruleDiv.querySelector('input[name="value"]').value;
-                    if (value) { rules.push({ field, operator, value }); }
+                    if (value) {
+                        rules.push({ field, operator, value });
+                    }
                 });
 
                 let filteredData = window.currentAnalysisData.detailed_data;
@@ -376,37 +372,51 @@
                         const checkRule = (rule) => {
                             const rowValue = row[rule.field];
                             if (rowValue === null || rowValue === undefined) return false;
+                            
                             let value = (rule.field === 'age_hours' || rule.field === 'wbn_count') ? parseFloat(rule.value) : rule.value;
                             const rowStringValue = String(rowValue).toLowerCase();
                             const valueString = String(value).toLowerCase();
+
                             switch (rule.operator) {
-                                case 'is': return rowStringValue == valueString;
-                                case 'is not': return rowStringValue != valueString;
+                                case 'is':       return rowStringValue == valueString;
+                                case 'is not':   return rowStringValue != valueString;
                                 case 'contains': return rowStringValue.includes(valueString);
-                                case '>': return rowValue > value; case '<': return rowValue < value;
-                                case '==': return rowValue == value; case '>=': return rowValue >= value;
-                                case '<=': return rowValue <= value; default: return false;
+                                case '>':        return rowValue > value;
+                                case '<':        return rowValue < value;
+                                case '==':       return rowValue == value;
+                                case '>=':       return rowValue >= value;
+                                case '<=':       return rowValue <= value;
+                                default:         return false;
                             }
                         };
                         return (logic === 'AND') ? rules.every(checkRule) : rules.some(checkRule);
                     });
                 }
+                
                 renderBagTable(detailViewListDiv, filteredData, 'ageing');
                 detailViewTitle.textContent = `Detailed View: ${rules.length} Magic Filter(s) Applied`;
                 document.getElementById('detailViewContent').classList.add('open');
             }
+
 
             // --- UI Rendering Functions ---
             function renderAgeingAnalysis(ageingGroups, totalBags, totalShipments) {
                 totalPendingBagsSpan.textContent = totalBags;
                 totalPendingShipmentsSpan.textContent = totalShipments;
                 allAgeGroupCard.onclick = handleAllAgeGroupClick;
+
                 const categoriesOrder = ["0 to 1 hr", "1 to 2 hr", "2 to 2.5 hrs", "More than 2.5 hrs"];
                 const categoryColors = { "0 to 1 hr": "bg-blue-category", "1 to 2 hr": "bg-orange-category", "2 to 2.5 hrs": "bg-orange-category", "More than 2.5 hrs": "bg-red-category" };
+                
                 ageingCategoriesDiv.innerHTML = categoriesOrder.map(category => {
                     const group = ageingGroups[category] || {bag_id_count: 0, wbn_count: 0};
-                    return `<div class="ageing-category-card ${categoryColors[category]}" data-age-category="${category}"><div class="ageing-category-title">${category}</div><div class="ageing-counts">Bags: <strong>${group.bag_id_count}</strong> | WBNs: <strong>${group.wbn_count}</strong></div></div>`;
+                    return `
+                        <div class="ageing-category-card ${categoryColors[category]}" data-age-category="${category}">
+                            <div class="ageing-category-title">${category}</div>
+                            <div class="ageing-counts">Bags: <strong>${group.bag_id_count}</strong> | WBNs: <strong>${group.wbn_count}</strong></div>
+                        </div>`;
                 }).join('');
+
                 document.querySelectorAll('.ageing-category-card:not(#allAgeGroupCard)').forEach(card => {
                     card.addEventListener('click', (e) => {
                         const category = e.currentTarget.dataset.ageCategory;
@@ -433,7 +443,29 @@
                     detailViewButtons.classList.add('hidden');
                     return;
                 }
-                targetDiv.innerHTML = `<table class="data-table" id="detailViewTable"><thead><tr><th data-sort-key="bag_id">Bag ID</th><th data-sort-key="age_hours">Age</th><th data-sort-key="wbn_count">WBNs</th><th>Remarks</th></tr></thead><tbody>${bags.map(bag => { let wbnDisplay = (viewType === 'cluster') ? `${bag.wbn_count_for_cluster || 0} / ${bag.wbn_count_per_bag || 0}` : (bag.wbn_count || 0); return `<tr data-bag-id="${bag.bag_id}" data-age-str="${bag.age_str}"><td><a href="${BAG_HQ_BASE_URL}${bag.bag_id}" target="_blank" class="text-blue-600 hover:underline">${bag.bag_id}${bag.is_bfsi ? '<span class="bfsi-icon">$</span>' : ''}</a></td><td>${bag.age_str}</td><td>${wbnDisplay}</td><td><textarea class="remarks-textarea" data-bag-id="${bag.bag_id}" data-bag-age="${bag.age_str}"></textarea></td></tr>` }).join('')}</tbody></table>`;
+
+                targetDiv.innerHTML = `
+                    <table class="data-table" id="detailViewTable">
+                        <thead><tr>
+                            <th data-sort-key="bag_id">Bag ID</th>
+                            <th data-sort-key="age_hours">Age</th>
+                            <th data-sort-key="wbn_count">WBNs</th>
+                            <th>Remarks</th>
+                        </tr></thead>
+                        <tbody>
+                            ${bags.map(bag => {
+                                let wbnDisplay = (viewType === 'cluster') ? `${bag.wbn_count_for_cluster || 0} / ${bag.wbn_count_per_bag || 0}` : (bag.wbn_count || 0);
+                                return `
+                                <tr data-bag-id="${bag.bag_id}" data-age-str="${bag.age_str}">
+                                    <td><a href="${BAG_HQ_BASE_URL}${bag.bag_id}" target="_blank" class="text-blue-600 hover:underline">${bag.bag_id}${bag.is_bfsi ? '<span class="bfsi-icon">$</span>' : ''}</a></td>
+                                    <td>${bag.age_str}</td>
+                                    <td>${wbnDisplay}</td>
+                                    <td><textarea class="remarks-textarea" data-bag-id="${bag.bag_id}" data-bag-age="${bag.age_str}"></textarea></td>
+                                </tr>`
+                            }).join('')}
+                        </tbody>
+                    </table>`;
+                
                 detailViewButtons.classList.remove('hidden');
             }
             
@@ -442,9 +474,24 @@
                     clusterSummaryListDiv.innerHTML = '<p class="text-gray-500 p-4">No cluster data available.</p>';
                     return;
                 }
+
                 const clusterArray = Object.entries(clusterDetails).map(([id, details]) => ({ id, bags: details.bag_id_count, wbns: details.wbn_count }));
                 clusterArray.sort((a, b) => b.wbns - a.wbns);
-                clusterSummaryListDiv.innerHTML = `<table class="data-table"><thead><tr><th>Cluster ID</th><th>Pending Bags</th><th>Pending WBNs</th></tr></thead><tbody>${clusterArray.map(cluster => `<tr class="clickable-row hover:bg-blue-50" data-cluster-id="${cluster.id}"><td class="font-semibold text-gray-800">${cluster.id}</td><td>${cluster.bags}</td><td>${cluster.wbns}</td></tr>`).join('')}</tbody></table>`;
+
+                clusterSummaryListDiv.innerHTML = `
+                    <table class="data-table">
+                        <thead><tr><th>Cluster ID</th><th>Pending Bags</th><th>Pending WBNs</th></tr></thead>
+                        <tbody>
+                            ${clusterArray.map(cluster => `
+                                <tr class="clickable-row hover:bg-blue-50" data-cluster-id="${cluster.id}">
+                                    <td class="font-semibold text-gray-800">${cluster.id}</td>
+                                    <td>${cluster.bags}</td>
+                                    <td>${cluster.wbns}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>`;
+
                 document.querySelectorAll('#clusterSummaryList tr[data-cluster-id]').forEach(row => {
                     row.addEventListener('click', e => {
                         const clusterId = e.currentTarget.dataset.clusterId;
@@ -487,22 +534,38 @@
             });
 
             copyRemarksButton.addEventListener('click', () => {
-                const remarks = Array.from(detailViewListDiv.querySelectorAll('.remarks-textarea')).filter(t => t.value.trim() !== '').map(t => `Bag ID: ${t.dataset.bagId}\nAge: ${t.dataset.bagAge}\nRemarks: ${t.value.trim()}`);
+                const remarks = Array.from(detailViewListDiv.querySelectorAll('.remarks-textarea'))
+                    .filter(t => t.value.trim() !== '')
+                    .map(t => `Bag ID: ${t.dataset.bagId}\nAge: ${t.dataset.bagAge}\nRemarks: ${t.value.trim()}`);
                 if (remarks.length === 0) { showMessage(messageArea, 'No remarks to copy.', true); return; }
                 navigator.clipboard.writeText(remarks.join('\n\n---\n\n')).then(() => {
                     showMessage(messageArea, `Copied ${remarks.length} remark(s) to clipboard!`, false);
                 });
             });
             
+            function exportForOffline() {
+                if (!window.currentAnalysisData) { showMessage(messageArea, "Please generate a dashboard first.", true); return; }
+                const offlineHtmlTemplate = `<!DOCTYPE html><html lang="en"><head>${document.head.innerHTML}</head><body>${document.querySelector('.container').outerHTML}<script id="offline-script">window.embeddedData = ${JSON.stringify(window.currentAnalysisData)};const initializeApp = ${initializeApp.toString()};document.addEventListener('DOMContentLoaded', initializeApp);<\/script></body></html>`;
+                const blob = new Blob([offlineHtmlTemplate], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `mix_bag_dashboard_offline_${new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '-')}.html`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+            
+            if(exportButton) exportButton.addEventListener('click', exportForOffline);
+            
             addRuleBtn.addEventListener('click', createFilterRule);
             applyMagicFilterBtn.addEventListener('click', applyMagicFilter);
-            
-            // --- App Initialization ---
-            checkServerStatus();
+
             setupCollapsibleHeaders();
         }
         
-        document.addEventListener('DOMContentLoaded', initializeApp);
+        initializeApp();
     </script>
 </body>
 </html>
