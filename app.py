@@ -1,4 +1,4 @@
-# mix_bag_app.py - Backend for Mix Bag Analytics (Deployment Ready)
+# mix_bag_app.py - Backend for Mix Bag Analytics
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -12,11 +12,11 @@ from datetime import datetime, timedelta
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = Flask(__name__)
-CORS(app) # Enable CORS for different domains (e.g., github.io and onrender.com)
+CORS(app) # Enable CORS for development
 
 # --- Global variables for status tracking ---
 APP_START_TIME = datetime.now()
-BACKEND_VERSION = "1.9.0_DEPLOYMENT" # Version ready for deployment
+BACKEND_VERSION = "1.8.0" # Version with Ageing Group fix
 TOTAL_ANALYSES_PERFORMED = 0
 LAST_ANALYSIS_TIME = "Never"
 
@@ -138,7 +138,7 @@ def mix_bag_analytics_api():
                     "bag_id_count": int(row['bag_id_count']), "wbn_count": int(row['wbn_count']), "bags": formatted_bags
                 }
 
-        # *** Corrected Ageing Group Calculation Logic ***
+        # *** FIX: Restored Ageing Group Calculation Logic ***
         ageing_groups = {
             "0 to 1 hr": {"bag_id_count": 0, "wbn_count": 0, "bags": []}, "1 to 2 hr": {"bag_id_count": 0, "wbn_count": 0, "bags": []},
             "2 to 2.5 hrs": {"bag_id_count": 0, "wbn_count": 0, "bags": []}, "More than 2.5 hrs": {"bag_id_count": 0, "wbn_count": 0, "bags": []}
@@ -191,5 +191,6 @@ def get_backend_status():
         "last_analysis_time": LAST_ANALYSIS_TIME, "total_analyses": TOTAL_ANALYSES_PERFORMED
     }), 200
 
-# The if __name__ == '__main__': block has been removed for production.
-# A production server like Gunicorn will run the 'app' object directly.
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
