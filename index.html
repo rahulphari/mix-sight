@@ -3,506 +3,442 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mix Bag Analytics Dashboard</title>
+    <title>Mix-Bag Sorter</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Roboto', sans-serif; background-color: #f0f2f5; }
-        .container { max-width: 1600px; margin: 1.5rem auto; padding: 1.5rem; }
-        .dashboard-header {
-            background: linear-gradient(135deg, #4b5563, #1f2937); color: white; padding: 2.5rem;
-            border-radius: 0.75rem; margin-bottom: 2rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* slate-900 */
+            background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0);
+            background-size: 2rem 2rem;
         }
-        .card {
-            background-color: #ffffff; border-radius: 0.75rem; padding: 1.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        .transition-all-fast { transition: all 0.3s ease-in-out; }
+        .scan-input:focus {
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);
         }
-        .section-title { @apply text-xl font-bold text-gray-800 mb-4 border-b pb-2; }
-        .collapsible-header { @apply text-xl font-bold text-gray-700 cursor-pointer flex justify-between items-center hover:text-blue-700 transition-colors; }
-        .collapsible-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
-        .collapsible-content.open { max-height: 1000px; }
-        .data-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-        .data-table th, .data-table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-size: 0.875rem; }
-        .data-table th { background-color: #f9fafb; font-weight: 500; }
-        .clickable-row { cursor: pointer; }
-        .ageing-category-card { @apply p-4 rounded-lg shadow-sm border flex flex-col justify-between items-center text-center transition duration-300 ease-in-out transform hover:-translate-y-1 cursor-pointer; }
-        .ageing-category-card.bg-blue-category { background-color: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
-        .ageing-category-card.bg-orange-category { background-color: #fff7ed; border-color: #fed7aa; color: #c2410c; }
-        .ageing-category-card.bg-red-category { background-color: #fee2e2; border-color: #fca5a5; color: #991b1b; }
-        .ageing-category-card.bg-green-category { background-color: #f0fdf4; border-color: #bbf7d0; color: #166534; }
-        .ageing-category-title { @apply text-lg font-semibold mb-2; }
-        .ageing-counts { @apply text-base; }
-        .ageing-counts strong { @apply text-3xl font-bold; }
-        .bfsi-icon { font-size: 0.7em; vertical-align: super; margin-left: 2px; color: #0d9488; }
-        .remarks-textarea { width: 100%; min-height: 60px; padding: 8px; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem; resize: vertical; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); }
-        .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; }
-        .status-dot.bg-green-500, .status-dot.bg-yellow-500 { animation: pulse 2s infinite; }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+        .main-btn {
+            transform: translateY(0);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
+        .main-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        .cluster-card input[type="checkbox"]:checked + label {
+            border-color: #3B82F6; /* blue-500 */
+            background: linear-gradient(145deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.05));
+        }
+        .cluster-card input[type="checkbox"] { display: none; }
+        .cluster-card .checkmark {
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.2s ease-in-out;
+        }
+        .cluster-card input[type="checkbox"]:checked + label .checkmark {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .fade-in { animation: fadeIn 0.5s ease-in-out forwards; }
+        .slide-up { animation: slideUp 0.5s ease-in-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
-<body>
-    <div class="container">
-        <div class="dashboard-header text-center relative">
-            <h1 class="text-4xl font-bold tracking-tight">Mix Bag Analytics Co-Pilot</h1>
-            <p class="text-gray-300 text-lg mt-2">Unlock real-time insights from your pending bag data</p>
-        </div>
+<body class="bg-slate-900 text-white h-screen overflow-hidden">
 
-        <div class="card mb-6 bg-gray-50 border border-gray-200">
-            <div class="flex items-center justify-between">
-                <div id="serverStatus" class="flex items-center space-x-2 text-sm">
-                    <span class="status-dot bg-yellow-500"></span>
-                    <span class="font-semibold text-gray-700">Server Status:</span>
-                    <span class="text-gray-600">Checking...</span>
-                </div>
-                <div class="text-xs text-gray-500 text-right">
-                    <p><strong>Note:</strong> This is a beta deployment hosted on a personal server with limited bandwidth.</p>
-                    <p>The server may go offline after periods of inactivity. Please refresh if you see an error.</p>
-                </div>
-            </div>
+    <!-- Data Input Screen -->
+    <div id="input-screen" class="relative p-4 md:p-8 h-full flex flex-col">
+        <div class="text-center mb-6 fade-in">
+            <h1 class="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-green-400">Mix-Bag Sorter</h1>
+            <p class="text-slate-300 mt-3 text-lg">Prioritize your mix-bag clog for minimal cut-off failures.</p>
         </div>
         
-        <div id="uploadSection" class="card mb-6">
-            <div class="flex items-center space-x-4">
-                <input type="file" id="mixBagFileUpload" name="mixBagFileUpload" accept=".csv"
-                       class="block w-full text-sm text-gray-500
-                              file:mr-4 file:py-2 file:px-4
-                              file:rounded-lg file:border-0
-                              file:text-sm file:font-semibold
-                              file:bg-blue-600 file:text-white
-                              hover:file:bg-blue-700
-                              border border-gray-300 rounded-lg cursor-pointer">
-                <button id="uploadAndAnalyzeButton"
-                        class="bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:shadow-lg transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-700">
-                    Analyze
-                </button>
-            </div>
-            <p class="text-xs text-gray-500 mt-3">
-                For accurate results, download the latest GI PENDING file from 
-                <a href="https://eye.delhivery.com/#/dashboard?tab=mixed-bags" target="_blank" class="text-blue-600 hover:underline">Delhivery Eye (Mixed-Bags Tab)</a>.
-            </p>
-            <div id="messageArea" class="mt-4 text-center"></div>
+        <!-- File Upload Section -->
+        <div class="w-full max-w-2xl mx-auto slide-up">
+            <label for="csv-upload" id="upload-label" class="w-full cursor-pointer bg-slate-800 hover:bg-slate-700 border-2 border-dashed border-slate-600 rounded-lg flex flex-col items-center justify-center p-6 transition-all-fast">
+                <svg class="w-10 h-10 text-slate-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l-3 3m3-3l3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" /></svg>
+                <span class="font-semibold text-lg text-slate-300">Upload a CSV file</span>
+                <span id="file-name" class="text-sm text-slate-400 mt-1">or drag and drop</span>
+            </label>
+            <input type="file" id="csv-upload" class="hidden" accept=".csv, text/csv">
         </div>
 
-        <div id="welcomeSection" class="card mb-6">
-            <h2 class="text-2xl font-bold text-center text-gray-800 mb-4">How It Works</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center mt-8">
-                <div class="p-4">
-                    <div class="text-5xl mb-4">📊</div>
-                    <h3 class="font-bold text-lg">Instant Summary</h3>
-                    <p class="text-sm text-gray-600">Get a live pulse on pending bags and shipments, neatly grouped by age and cluster.</p>
-                </div>
-                <div class="p-4">
-                    <div class="text-5xl mb-4">🔍</div>
-                    <h3 class="font-bold text-lg">Deep Dive</h3>
-                    <p class="text-sm text-gray-600">Click on any category or cluster to instantly filter and view a detailed list of the underlying bags.</p>
-                </div>
-                 <div class="p-4">
-                    <div class="text-5xl mb-4">🪄</div>
-                    <h3 class="font-bold text-lg">Magic Filter</h3>
-                    <p class="text-sm text-gray-600">Create custom rules to slice and dice your data for targeted analysis and reporting.</p>
-                </div>
-            </div>
+        <div class="flex items-center my-4 slide-up">
+            <div class="flex-grow border-t border-slate-700"></div>
+            <span class="flex-shrink mx-4 text-slate-500">OR</span>
+            <div class="flex-grow border-t border-slate-700"></div>
         </div>
 
-        <div id="resultsDisplay" class="hidden space-y-6">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="space-y-6">
-                    <div class="card">
-                        <h2 class="section-title">MixBag Summary</h2>
-                        <div id="allAgeGroupCard" class="ageing-category-card bg-green-category mb-4" data-age-category="All">
-                            <div class="ageing-category-title">All Pending Bags</div>
-                            <div class="ageing-counts">
-                                Bags: <strong id="totalPendingBags">0</strong> |
-                                WBNs: <strong id="totalPendingShipments">0</strong>
-                            </div>
-                        </div>
-                        <div id="ageingCategories" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-                    </div>
-                    <div class="card">
-                        <h3 class="text-lg font-bold">🪄 Magic Filter</h3>
-                        <div class="my-4">
-                            <div id="filter-rules-container" class="space-y-3"></div>
-                            <button id="add-rule-btn" class="mt-4 text-sm bg-blue-500 text-white py-1 px-3 rounded-md">+ Add Rule</button>
-                        </div>
-                        <div class="flex items-center justify-between mt-4 bg-gray-50 p-3 rounded-md">
-                            <div>
-                                <span class="font-semibold">Match</span>
-                                <select id="filter-logic-selector" class="p-1 border rounded-md">
-                                    <option value="AND">ALL</option>
-                                    <option value="OR">ANY</option>
-                                </select>
-                                <span class="font-semibold">rules.</span>
-                            </div>
-                            <button id="apply-magic-filter-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Apply</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="card flex flex-col">
-                    <h2 class="section-title">Cluster Pending Summary</h2>
-                    <div id="clusterSummaryList" class="flex-grow max-h-[520px] overflow-y-auto pr-2">
-                        <p class="text-gray-600">Cluster summary will appear here after analysis.</p>
-                    </div>
-                </div>
-            </div>
-            <div class="card">
-                <h3 class="collapsible-header" data-target="detailViewContent">
-                    <span id="detailViewTitle">Detailed Bag List</span>
-                    <span class="arrow-icon">▼</span>
-                </h3>
-                <div id="detailViewContent" class="collapsible-content pt-4">
-                    <div id="detailViewButtons" class="mb-3 space-x-2 hidden">
-                        <button id="copyAllButton" class="bg-green-500 hover:bg-green-600 text-white text-sm py-1 px-3 rounded-full">Copy All</button>
-                        <button id="copyRemarksButton" class="bg-indigo-500 hover:bg-indigo-600 text-white text-sm py-1 px-3 rounded-full">Copy Remarks</button>
-                    </div>
-                    <div id="detailViewList" class="max-h-[500px] overflow-y-auto pr-2">
-                        <p class="text-gray-600">Click on an ageing category or cluster to see details here.</p>
-                    </div>
-                </div>
-            </div>
+        <div class="flex-grow flex flex-col slide-up" style="min-height: 150px;">
+            <textarea id="data-input" class="w-full flex-grow bg-slate-800 border-2 border-slate-700 rounded-lg p-4 text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Paste data here..."></textarea>
         </div>
+        <button id="load-data-btn" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-lg text-xl transition-all-fast main-btn slide-up">
+            Load & Analyze Data
+        </button>
+        <footer class="absolute bottom-4 left-0 right-0 text-center text-xs text-slate-400 tracking-wider">
+            Designed & Crafted by Rh. For Internal Use Only.
+        </footer>
+    </div>
+
+    <!-- Cluster Selection Screen -->
+    <div id="cluster-selection-screen" class="hidden relative p-4 md:p-8 h-full flex flex-col">
+        <div class="text-center mb-6 fade-in">
+            <h1 class="text-3xl md:text-4xl font-bold text-green-400">Select Target Clusters</h1>
+            <p class="text-slate-300 mt-2">Choose which clusters to prioritize for this session.</p>
+        </div>
+        <div id="cluster-list" class="flex-grow overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-2"></div>
+        <button id="start-scanning-btn" class="w-full mt-6 bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-4 rounded-lg text-xl transition-all-fast main-btn slide-up">
+            Start Scanning
+        </button>
+        <footer class="absolute bottom-4 left-0 right-0 text-center text-xs text-slate-400 tracking-wider">
+            Designed & Crafted by Rh. For Internal Use Only.
+        </footer>
+    </div>
+
+    <!-- Scanning Screen -->
+    <div id="scan-screen" class="hidden relative h-full flex flex-col items-center justify-center text-center p-4">
+        <h2 id="scan-title" class="text-8xl md:text-9xl font-black text-slate-700 animate-pulse">READY TO SCAN</h2>
+        <form id="scan-form" class="mt-8">
+            <input type="text" id="scan-input" autocomplete="off" class="bg-slate-800 border-2 border-slate-700 rounded-lg p-4 text-3xl text-center w-full max-w-lg scan-input" placeholder="Awaiting Scan...">
+        </form>
+         <div id="cluster-info" class="mt-8 text-slate-300 text-left max-w-2xl mx-auto bg-slate-800/50 p-4 rounded-lg"></div>
+        <footer class="absolute bottom-4 left-0 right-0 text-center text-xs text-slate-400 tracking-wider">
+            Designed & Crafted by Rh. For Internal Use Only.
+        </footer>
+    </div>
+
+    <!-- Result Screen -->
+    <div id="result-screen" class="hidden h-full w-full absolute top-0 left-0 flex flex-col items-center justify-center text-white text-center p-4 transition-all-fast">
+        <div id="result-status" class="text-8xl md:text-9xl font-black" style="text-shadow: 0 0 20px rgba(0,0,0,0.5);"></div>
+        <div id="result-bag-id" class="text-4xl md:text-5xl font-semibold mt-2"></div>
+        <div id="result-bag-details" class="text-2xl mt-4 font-light"></div>
+        <div id="result-stats" class="mt-10 grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl"></div>
+        <footer class="absolute bottom-4 left-0 right-0 text-center text-xs text-white/70 tracking-wider">
+            Designed & Crafted by Rh. For Internal Use Only.
+        </footer>
     </div>
     
-    <footer class="text-center py-8">
-        <div class="flex items-center justify-center space-x-2 text-xs text-gray-400 hover:text-gray-600 transition-colors duration-300">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zM3.735 3.15A2 2 0 0 1 5.416 2h5.168a2 2 0 0 1 1.681 1.15l.623 2.391c.118.453.133.934.034 1.385l-.265 1.138a2 2 0 0 1-1.996 1.625H5.416a2 2 0 0 1-1.996-1.625L3.19 8.026c-.1-.45-.083-.932.034-1.385l.623-2.391zM4.846 5.495a.5.5 0 0 0-.447.276L2.5 11.11a.5.5 0 0 0 .447.724h10.097a.5.5 0 0 0 .447-.724l-1.9-5.339a.5.5 0 0 0-.447-.276H4.846z"/></svg>
-            <p>Designed & Crafted by Rh. <span class="mx-1 opacity-50">|</span> For Internal Use Only. Not for Propagation.</p>
+    <!-- Completion Screen -->
+    <div id="completion-screen" class="hidden h-full w-full absolute top-0 left-0 flex flex-col items-center justify-center text-center p-4 bg-gradient-to-br from-green-500 to-emerald-600">
+        <div class="fade-in">
+            <h2 class="text-7xl md:text-8xl font-black text-white">ALL TARGETS FOUND!</h2>
+            <p class="text-2xl text-green-100 mt-4">Great work! All selected priority bags have been sorted.</p>
+            <button id="reset-btn" class="mt-12 bg-white text-green-600 font-bold py-4 px-8 rounded-lg text-xl transition-all-fast main-btn">
+                Start New Batch
+            </button>
         </div>
-    </footer>
+        <footer class="absolute bottom-4 left-0 right-0 text-center text-xs text-white/70 tracking-wider">
+            Designed & Crafted by Rh. For Internal Use Only.
+        </footer>
+    </div>
 
-    <script id="main-script">
-        function initializeApp() {
-            // --- Main App Elements ---
-            const fileUploadInput = document.getElementById('mixBagFileUpload');
-            const uploadAndAnalyzeButton = document.getElementById('uploadAndAnalyzeButton');
-            const resultsDisplay = document.getElementById('resultsDisplay');
-            const messageArea = document.getElementById('messageArea');
-            const welcomeSection = document.getElementById('welcomeSection');
-            const serverStatusDiv = document.getElementById('serverStatus');
+    <script>
+        // --- DOM Elements ---
+        const allScreens = {
+            input: document.getElementById('input-screen'),
+            clusterSelection: document.getElementById('cluster-selection-screen'),
+            scan: document.getElementById('scan-screen'),
+            result: document.getElementById('result-screen'),
+            completion: document.getElementById('completion-screen')
+        };
+        const dataInput = document.getElementById('data-input');
+        const loadDataBtn = document.getElementById('load-data-btn');
+        const clusterList = document.getElementById('cluster-list');
+        const startScanningBtn = document.getElementById('start-scanning-btn');
+        const scanForm = document.getElementById('scan-form');
+        const scanInput = document.getElementById('scan-input');
+        const resultStatus = document.getElementById('result-status');
+        const resultBagId = document.getElementById('result-bag-id');
+        const resultBagDetails = document.getElementById('result-bag-details');
+        const resultStats = document.getElementById('result-stats');
+        const clusterInfo = document.getElementById('cluster-info');
+        const resetBtn = document.getElementById('reset-btn');
+        const csvUpload = document.getElementById('csv-upload');
+        const uploadLabel = document.getElementById('upload-label');
+        const fileNameEl = document.getElementById('file-name');
 
-            // --- Data Display Elements ---
-            const ageingCategoriesDiv = document.getElementById('ageingCategories');
-            const totalPendingBagsSpan = document.getElementById('totalPendingBags');
-            const totalPendingShipmentsSpan = document.getElementById('totalPendingShipments');
-            const allAgeGroupCard = document.getElementById('allAgeGroupCard');
-            const clusterSummaryListDiv = document.getElementById('clusterSummaryList');
-            
-            // --- Detailed View Elements ---
-            const detailViewTitle = document.getElementById('detailViewTitle');
-            const detailViewListDiv = document.getElementById('detailViewList');
-            const detailViewButtons = document.getElementById('detailViewButtons');
-            const copyAllButton = document.getElementById('copyAllButton');
-            const copyRemarksButton = document.getElementById('copyRemarksButton');
+        // --- State ---
+        let fullBagDatabase = {};
+        let priorityBagDatabase = {};
+        let totalPriorityBags = 0;
+        let identifiedBagsCount = 0;
+        let isScanning = false;
 
-            // --- Magic Filter Elements ---
-            const addRuleBtn = document.getElementById('add-rule-btn');
-            const applyMagicFilterBtn = document.getElementById('apply-magic-filter-btn');
+        // --- Sound Synthesis ---
+        let successSynth, errorSynth, completionSynth, nonTargetSynth;
+        function setupSynths() {
+            successSynth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.5 } }).toDestination();
+            errorSynth = new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.5 } }).toDestination();
+            nonTargetSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.02, decay: 0.3, sustain: 0.2, release: 0.5 } }).toDestination();
+            completionSynth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "triangle" } }).toDestination();
+        }
 
-            // --- App State ---
-            const API_URL = 'https://mix-sight.onrender.com';
-            const BAG_HQ_BASE_URL = "https://hq.delhivery.com/bag/";
-            let uploadedCsvContent = null;
-            let uploadedFileName = null;
-            window.currentAnalysisData = null;
-
-            // --- Magic Filter Configuration ---
-            const fields = {
-                'Bag ID': 'bag_id', 'Cluster ID': 'cluster_id', 'WBN Count': 'wbn_count',
-                'Age (Hours)': 'age_hours', 'Ageing Bracket': 'age_str', 'BFSI Status': 'is_bfsi'
-            };
-            const operators = {
-                'Text': [ {val:'is', lbl:'is'}, {val:'is not', lbl:'is not'}, {val:'contains', lbl:'contains'} ],
-                'Numeric': [ {val:'>', lbl:'>'}, {val:'<', lbl:'<'}, {val:'==', lbl:'='}, {val:'>=', lbl:'>='}, {val:'<=', lbl:'<='} ]
-            };
-
-            // --- Server Status Check ---
-            async function checkServerStatus() {
-                try {
-                    const response = await fetch(`${API_URL}/api/status`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        serverStatusDiv.innerHTML = `
-                            <span class="status-dot bg-green-500"></span>
-                            <span class="font-semibold text-gray-700">Server Status:</span>
-                            <span class="text-green-700 font-bold">Online</span>
-                            <span class="text-gray-500 text-xs">(v${data.version})</span>`;
-                    } else {
-                        throw new Error('Server responded with an error');
-                    }
-                } catch (error) {
-                    serverStatusDiv.innerHTML = `
-                        <span class="status-dot bg-red-500"></span>
-                        <span class="font-semibold text-gray-700">Server Status:</span>
-                        <span class="text-red-700 font-bold">Offline</span>`;
-                }
+        // --- UI Logic ---
+        function displayClusterSelection() {
+            const clusters = {};
+            for (const bagId in fullBagDatabase) {
+                const bag = fullBagDatabase[bagId];
+                if (!clusters[bag.cluster]) clusters[bag.cluster] = { bagCount: 0, shipmentCount: 0 };
+                clusters[bag.cluster].bagCount++;
+                clusters[bag.cluster].shipmentCount += bag.shipments;
             }
 
-            // --- Core Functions ---
-            function showMessage(element, message, isError = false) {
-                element.textContent = message;
-                element.className = `mt-4 text-center p-2 rounded-md ${isError ? 'text-red-800 bg-red-100' : 'text-green-800 bg-green-100'}`;
-            }
-
-            function toggleCollapsible(event) {
-                const targetId = event.currentTarget.dataset.target;
-                const content = document.getElementById(targetId);
-                const icon = event.currentTarget.querySelector('.arrow-icon');
-                const isExpanded = content.classList.contains('open');
-
-                if (isExpanded) {
-                    content.classList.remove('open');
-                    icon.innerHTML = '▼';
-                } else {
-                    content.classList.add('open');
-                    icon.innerHTML = '▲';
-                }
-            }
-
-            function setupCollapsibleHeaders() {
-                document.querySelectorAll('.collapsible-header').forEach(header => {
-                    header.removeEventListener('click', toggleCollapsible);
-                    header.addEventListener('click', toggleCollapsible);
-                });
-            }
-
-            async function analyzeData(csvContent, fileName) {
-                if(uploadAndAnalyzeButton) uploadAndAnalyzeButton.disabled = true;
-                if(fileUploadInput) fileUploadInput.disabled = true;
-                showMessage(messageArea, 'Analyzing... Please wait.', false);
-                resultsDisplay.classList.add('hidden');
-                
-                try {
-                    const payload = { file_name: fileName, csv_content: csvContent };
-                    const response = await fetch(`${API_URL}/api/mix-bag-analytics`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || 'Failed to analyze data.');
-                    }
-
-                    const data = await response.json();
-                    window.currentAnalysisData = data;
-                    renderAll(data);
-                    welcomeSection.classList.add('hidden'); // Hide welcome section on success
-
-                } catch (error) {
-                    showMessage(messageArea, `Error: ${error.message}`, true);
-                } finally {
-                    if(uploadAndAnalyzeButton) uploadAndAnalyzeButton.disabled = false;
-                    if(fileUploadInput) fileUploadInput.disabled = false;
-                }
-            }
-            
-            function renderAll(data) {
-                const bagIdToClusterIdMap = new Map();
-                if (data.cluster_details) {
-                    for (const clusterId in data.cluster_details) {
-                        const cluster = data.cluster_details[clusterId];
-                        if (cluster.bags) {
-                            cluster.bags.forEach(bag => {
-                                if(bag.bag_id) { bagIdToClusterIdMap.set(bag.bag_id, clusterId); }
-                            });
-                        }
-                    }
-                }
-
-                data.detailed_data = Object.values(data.ageing_groups).flatMap(g => g.bags).map(bag => ({
-                    ...bag,
-                    cluster_id: bagIdToClusterIdMap.get(bag.bag_id) || 'N/A'
-                }));
-
-                renderAgeingAnalysis(data.ageing_groups, data.total_pending_bags, data.total_pending_shipments);
-                renderClusterSummaryTable(data.cluster_details);
-                resultsDisplay.classList.remove('hidden');
-                setupCollapsibleHeaders();
-                showMessage(messageArea, `Analysis complete for "${uploadedFileName || 'loaded data'}".`, false);
-            }
-
-            // --- Magic Filter Functions ---
-            function createFilterRule() {
-                const ruleId = `rule-${Date.now()}`;
-                const ruleDiv = document.createElement('div');
-                ruleDiv.id = ruleId;
-                ruleDiv.className = 'grid grid-cols-1 md:grid-cols-4 gap-2 items-center';
-                let fieldOptions = Object.keys(fields).map(name => `<option value="${fields[name]}">${name}</option>`).join('');
-                ruleDiv.innerHTML = `
-                    <select name="field" class="p-2 border rounded-md bg-white">${fieldOptions}</select>
-                    <select name="operator" class="p-2 border rounded-md bg-white"></select>
-                    <div name="value-container" class="col-span-1 md:col-span-1"></div>
-                    <button class="bg-red-500 text-white px-2 py-1 rounded-md justify-self-end text-xs">Remove</button>
-                `;
-                document.getElementById('filter-rules-container').appendChild(ruleDiv);
-
-                const fieldSelect = ruleDiv.querySelector('select[name="field"]');
-                const opSelect = ruleDiv.querySelector('select[name="operator"]');
-                const valContainer = ruleDiv.querySelector('div[name="value-container"]');
-
-                const updateOperatorsAndValue = () => {
-                    const selectedField = fieldSelect.value;
-                    const isNumeric = selectedField === 'age_hours' || selectedField === 'wbn_count';
-                    opSelect.innerHTML = (isNumeric ? operators.Numeric : operators.Text).map(op => `<option value="${op.val}">${op.lbl}</option>`).join('');
-                    const uniqueValues = [...new Set(window.currentAnalysisData.detailed_data.map(item => item[selectedField]).filter(val => val !== null && val !== undefined))];
-                    if (!isNumeric && (selectedField === 'age_str' || selectedField === 'is_bfsi' || selectedField === 'cluster_id')) {
-                        valContainer.innerHTML = `<input name="value" list="list-${ruleId}" class="p-2 border rounded-md w-full" placeholder="Enter value..."><datalist id="list-${ruleId}">${uniqueValues.map(v => `<option value="${v}"></option>`).join('')}</datalist>`;
-                    } else {
-                        valContainer.innerHTML = `<input name="value" type="${isNumeric ? 'number' : 'text'}" class="p-2 border rounded-md w-full" placeholder="Enter value...">`;
-                    }
-                };
-                fieldSelect.addEventListener('change', updateOperatorsAndValue);
-                ruleDiv.querySelector('button').addEventListener('click', () => ruleDiv.remove());
-                updateOperatorsAndValue();
-            }
-
-            function applyMagicFilter() {
-                const logic = document.getElementById('filter-logic-selector').value;
-                const rules = [];
-                document.getElementById('filter-rules-container').querySelectorAll('.grid').forEach(ruleDiv => {
-                    const field = ruleDiv.querySelector('select[name="field"]').value;
-                    const operator = ruleDiv.querySelector('select[name="operator"]').value;
-                    const value = ruleDiv.querySelector('input[name="value"]').value;
-                    if (value) { rules.push({ field, operator, value }); }
-                });
-
-                let filteredData = window.currentAnalysisData.detailed_data;
-                if (rules.length > 0) {
-                    filteredData = filteredData.filter(row => {
-                        const checkRule = (rule) => {
-                            const rowValue = row[rule.field];
-                            if (rowValue === null || rowValue === undefined) return false;
-                            let value = (rule.field === 'age_hours' || rule.field === 'wbn_count') ? parseFloat(rule.value) : rule.value;
-                            const rowStringValue = String(rowValue).toLowerCase();
-                            const valueString = String(value).toLowerCase();
-                            switch (rule.operator) {
-                                case 'is': return rowStringValue == valueString;
-                                case 'is not': return rowStringValue != valueString;
-                                case 'contains': return rowStringValue.includes(valueString);
-                                case '>': return rowValue > value; case '<': return rowValue < value;
-                                case '==': return rowValue == value; case '>=': return rowValue >= value;
-                                case '<=': return rowValue <= value; default: return false;
-                            }
-                        };
-                        return (logic === 'AND') ? rules.every(checkRule) : rules.some(checkRule);
-                    });
-                }
-                renderBagTable(detailViewListDiv, filteredData, 'ageing');
-                detailViewTitle.textContent = `Detailed View: ${rules.length} Magic Filter(s) Applied`;
-                document.getElementById('detailViewContent').classList.add('open');
-            }
-
-            // --- UI Rendering Functions ---
-            function renderAgeingAnalysis(ageingGroups, totalBags, totalShipments) {
-                totalPendingBagsSpan.textContent = totalBags;
-                totalPendingShipmentsSpan.textContent = totalShipments;
-                allAgeGroupCard.onclick = handleAllAgeGroupClick;
-                const categoriesOrder = ["0 to 1 hr", "1 to 2 hr", "2 to 2.5 hrs", "More than 2.5 hrs"];
-                const categoryColors = { "0 to 1 hr": "bg-blue-category", "1 to 2 hr": "bg-orange-category", "2 to 2.5 hrs": "bg-orange-category", "More than 2.5 hrs": "bg-red-category" };
-                ageingCategoriesDiv.innerHTML = categoriesOrder.map(category => {
-                    const group = ageingGroups[category] || {bag_id_count: 0, wbn_count: 0};
-                    return `<div class="ageing-category-card ${categoryColors[category]}" data-age-category="${category}"><div class="ageing-category-title">${category}</div><div class="ageing-counts">Bags: <strong>${group.bag_id_count}</strong> | WBNs: <strong>${group.wbn_count}</strong></div></div>`;
-                }).join('');
-                document.querySelectorAll('.ageing-category-card:not(#allAgeGroupCard)').forEach(card => {
-                    card.addEventListener('click', (e) => {
-                        const category = e.currentTarget.dataset.ageCategory;
-                        const group = window.currentAnalysisData?.ageing_groups[category];
-                        if (group) {
-                            detailViewTitle.textContent = `${category} Bags (${group.bag_id_count} Bags, ${group.wbn_count} WBNs)`;
-                            renderBagTable(detailViewListDiv, group.bags, 'ageing');
-                            document.getElementById('detailViewContent').classList.add('open');
-                        }
-                    });
-                });
-            }
-            
-            function handleAllAgeGroupClick() {
-                const allBags = window.currentAnalysisData.detailed_data;
-                detailViewTitle.textContent = `All Bags (${totalPendingBagsSpan.textContent} Bags, ${totalPendingShipmentsSpan.textContent} WBNs)`;
-                renderBagTable(detailViewListDiv, allBags, 'ageing');
-                document.getElementById('detailViewContent').classList.add('open');
-            }
-
-            function renderBagTable(targetDiv, bags, viewType = 'ageing') {
-                if (!bags || bags.length === 0) {
-                    targetDiv.innerHTML = `<p class="text-gray-600 p-4">No bags found for this selection.</p>`;
-                    detailViewButtons.classList.add('hidden');
-                    return;
-                }
-                targetDiv.innerHTML = `<table class="data-table" id="detailViewTable"><thead><tr><th data-sort-key="bag_id">Bag ID</th><th data-sort-key="age_hours">Age</th><th data-sort-key="wbn_count">WBNs</th><th>Remarks</th></tr></thead><tbody>${bags.map(bag => { let wbnDisplay = (viewType === 'cluster') ? `${bag.wbn_count_for_cluster || 0} / ${bag.wbn_count_per_bag || 0}` : (bag.wbn_count || 0); return `<tr data-bag-id="${bag.bag_id}" data-age-str="${bag.age_str}"><td><a href="${BAG_HQ_BASE_URL}${bag.bag_id}" target="_blank" class="text-blue-600 hover:underline">${bag.bag_id}${bag.is_bfsi ? '<span class="bfsi-icon">$</span>' : ''}</a></td><td>${bag.age_str}</td><td>${wbnDisplay}</td><td><textarea class="remarks-textarea" data-bag-id="${bag.bag_id}" data-bag-age="${bag.age_str}"></textarea></td></tr>` }).join('')}</tbody></table>`;
-                detailViewButtons.classList.remove('hidden');
-            }
-            
-            function renderClusterSummaryTable(clusterDetails) {
-                if (!clusterDetails || Object.keys(clusterDetails).length === 0) {
-                    clusterSummaryListDiv.innerHTML = '<p class="text-gray-500 p-4">No cluster data available.</p>';
-                    return;
-                }
-                const clusterArray = Object.entries(clusterDetails).map(([id, details]) => ({ id, bags: details.bag_id_count, wbns: details.wbn_count }));
-                clusterArray.sort((a, b) => b.wbns - a.wbns);
-                clusterSummaryListDiv.innerHTML = `<table class="data-table"><thead><tr><th>Cluster ID</th><th>Pending Bags</th><th>Pending WBNs</th></tr></thead><tbody>${clusterArray.map(cluster => `<tr class="clickable-row hover:bg-blue-50" data-cluster-id="${cluster.id}"><td class="font-semibold text-gray-800">${cluster.id}</td><td>${cluster.bags}</td><td>${cluster.wbns}</td></tr>`).join('')}</tbody></table>`;
-                document.querySelectorAll('#clusterSummaryList tr[data-cluster-id]').forEach(row => {
-                    row.addEventListener('click', e => {
-                        const clusterId = e.currentTarget.dataset.clusterId;
-                        const clusterData = window.currentAnalysisData.cluster_details[clusterId];
-                        if (clusterData) {
-                            detailViewTitle.textContent = `Bags in Cluster: ${clusterId} (${clusterData.bag_id_count} Bags, ${clusterData.wbn_count} WBNs)`;
-                            renderBagTable(detailViewListDiv, clusterData.bags, 'cluster');
-                            document.getElementById('detailViewContent').classList.add('open');
-                        }
-                    });
-                });
-            }
-
-            // --- Event Listeners ---
-            if(uploadAndAnalyzeButton) {
-                uploadAndAnalyzeButton.addEventListener('click', async () => {
-                    const file = fileUploadInput.files[0];
-                    if (!file) {
-                        showMessage(messageArea, 'Please select a CSV file.', true);
-                        return;
-                    }
-                    const reader = new FileReader();
-                    reader.onload = async (e) => {
-                        uploadedCsvContent = e.target.result;
-                        uploadedFileName = file.name;
-                        await analyzeData(uploadedCsvContent, uploadedFileName);
-                    };
-                    reader.onerror = () => showMessage(messageArea, 'Failed to read file.', true);
-                    reader.readAsText(file);
-                });
-            }
-
-            copyAllButton.addEventListener('click', () => {
-                const title = detailViewTitle.textContent;
-                const allBags = Array.from(detailViewListDiv.querySelectorAll('tbody tr')).map(row => row.querySelector('td a').textContent.trim());
-                if (allBags.length === 0) { showMessage(messageArea, 'No data to copy.', true); return; }
-                navigator.clipboard.writeText(`${title}\n\n${allBags.join('\n')}`).then(() => {
-                    showMessage(messageArea, `Copied all ${allBags.length} bag(s) to clipboard!`, false);
-                });
+            clusterList.innerHTML = '';
+            Object.keys(clusters).sort().forEach((clusterName, index) => {
+                const clusterData = clusters[clusterName];
+                clusterList.innerHTML += `
+                    <div class="cluster-card rounded-lg fade-in" style="animation-delay: ${index * 50}ms">
+                        <input type="checkbox" id="cluster-${clusterName}" value="${clusterName}" class="cluster-checkbox">
+                        <label for="cluster-${clusterName}" class="relative block p-4 rounded-lg border-2 border-slate-700 hover:border-blue-500 cursor-pointer transition-all-fast">
+                            <div class="font-bold text-lg text-white">${clusterName}</div>
+                            <div class="text-sm text-slate-300 mt-1"><span class="font-semibold text-blue-400">${clusterData.bagCount}</span> Bags</div>
+                            <div class="text-sm text-slate-300"><span class="font-semibold text-blue-400">${clusterData.shipmentCount}</span> Shipments</div>
+                            <div class="checkmark absolute top-3 right-3 h-6 w-6 bg-blue-600 rounded-full flex items-center justify-center">
+                                <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
+                            </div>
+                        </label>
+                    </div>`;
             });
-
-            copyRemarksButton.addEventListener('click', () => {
-                const remarks = Array.from(detailViewListDiv.querySelectorAll('.remarks-textarea')).filter(t => t.value.trim() !== '').map(t => `Bag ID: ${t.dataset.bagId}\nAge: ${t.dataset.bagAge}\nRemarks: ${t.value.trim()}`);
-                if (remarks.length === 0) { showMessage(messageArea, 'No remarks to copy.', true); return; }
-                navigator.clipboard.writeText(remarks.join('\n\n---\n\n')).then(() => {
-                    showMessage(messageArea, `Copied ${remarks.length} remark(s) to clipboard!`, false);
-                });
-            });
-            
-            addRuleBtn.addEventListener('click', createFilterRule);
-            applyMagicFilterBtn.addEventListener('click', applyMagicFilter);
-            
-            // --- App Initialization ---
-            checkServerStatus();
-            setupCollapsibleHeaders();
+            allScreens.input.classList.add('hidden');
+            allScreens.clusterSelection.classList.remove('hidden');
         }
         
-        document.addEventListener('DOMContentLoaded', initializeApp);
+        function prepareForScanning() {
+            const selectedClusters = Array.from(document.querySelectorAll('.cluster-checkbox:checked')).map(cb => cb.value);
+            if (selectedClusters.length === 0) { alert("Please select at least one cluster."); return; }
+
+            priorityBagDatabase = {};
+            let summaryHTML = '<div class="font-bold text-white mb-2">TARGETING:</div>';
+            for (const bagId in fullBagDatabase) {
+                const bag = fullBagDatabase[bagId];
+                if (selectedClusters.includes(bag.cluster)) priorityBagDatabase[bagId] = { ...bag, scanned: false };
+            }
+            selectedClusters.forEach(cluster => {
+                const bagsInCluster = Object.values(priorityBagDatabase).filter(b => b.cluster === cluster);
+                const shipmentsInCluster = bagsInCluster.reduce((sum, b) => sum + b.shipments, 0);
+                summaryHTML += `<div><span class="text-green-400 font-semibold">${cluster}</span>: ${bagsInCluster.length} Bags (${shipmentsInCluster} Shipments)</div>`;
+            });
+
+            clusterInfo.innerHTML = summaryHTML;
+            totalPriorityBags = Object.keys(priorityBagDatabase).length;
+            identifiedBagsCount = 0;
+
+            allScreens.clusterSelection.classList.add('hidden');
+            allScreens.scan.classList.remove('hidden');
+            scanInput.focus();
+            isScanning = true;
+        }
+
+        function updateStatsDisplay() {
+            const remainingBags = totalPriorityBags - identifiedBagsCount;
+            const identifiedShipments = Object.values(priorityBagDatabase).filter(b => b.scanned).reduce((sum, b) => sum + b.shipments, 0);
+            const totalTargetShipments = Object.values(priorityBagDatabase).reduce((sum, b) => sum + b.shipments, 0);
+            resultStats.innerHTML = `
+                <div class="bg-black/20 p-4 rounded-lg slide-up"><div class="text-5xl font-bold">${identifiedBagsCount}</div><div class="text-sm opacity-70">Target Bags Found</div></div>
+                <div class="bg-black/20 p-4 rounded-lg slide-up" style="animation-delay: 100ms;"><div class="text-5xl font-bold">${remainingBags}</div><div class="text-sm opacity-70">Bags Remaining</div></div>
+                <div class="bg-black/20 p-4 rounded-lg slide-up" style="animation-delay: 200ms;"><div class="text-5xl font-bold">${identifiedShipments}/${totalTargetShipments}</div><div class="text-sm opacity-70">Shipments Identified</div></div>`;
+        }
+
+        function showResult(bagId) {
+            isScanning = false;
+            allScreens.scan.classList.add('hidden');
+            allScreens.result.classList.remove('hidden');
+            
+            const isPriority = priorityBagDatabase.hasOwnProperty(bagId);
+            const isInMasterList = fullBagDatabase.hasOwnProperty(bagId);
+
+            resultBagId.textContent = bagId;
+
+            if (isPriority) {
+                const bagData = priorityBagDatabase[bagId];
+                if (!bagData.scanned) {
+                    bagData.scanned = true;
+                    identifiedBagsCount++;
+                }
+                allScreens.result.className = "h-full w-full absolute top-0 left-0 flex flex-col items-center justify-center text-white text-center p-4 transition-all-fast bg-gradient-to-br from-green-500 to-emerald-600";
+                resultStatus.textContent = 'PRIORITY';
+                resultBagDetails.innerHTML = `Contains <strong class="text-white">${bagData.shipments}</strong> shipments for <strong class="text-white">${bagData.cluster}</strong>`;
+                successSynth.triggerAttackRelease('C5', '0.5s');
+            } else if (isInMasterList) {
+                const bagData = fullBagDatabase[bagId];
+                allScreens.result.className = "h-full w-full absolute top-0 left-0 flex flex-col items-center justify-center text-white text-center p-4 transition-all-fast bg-gradient-to-br from-blue-500 to-indigo-600";
+                resultStatus.textContent = 'NON-TARGET';
+                resultBagDetails.innerHTML = `Belongs to <strong class="text-white">${bagData.cluster}</strong>, which is not a current target.`;
+                nonTargetSynth.triggerAttackRelease('A3', '0.5s');
+            } else {
+                allScreens.result.className = "h-full w-full absolute top-0 left-0 flex flex-col items-center justify-center text-white text-center p-4 transition-all-fast bg-gradient-to-br from-red-500 to-rose-600";
+                resultStatus.textContent = 'NOT IN LIST';
+                resultBagDetails.innerHTML = 'This bag is not in the loaded data.';
+                errorSynth.triggerAttackRelease('C3', '0.5s');
+            }
+            
+            updateStatsDisplay();
+
+            if (isPriority && identifiedBagsCount > 0 && identifiedBagsCount === totalPriorityBags) {
+                setTimeout(showCompletion, 2500);
+            } else {
+                setTimeout(resetForNextScan, 3000);
+            }
+        }
+        
+        function showCompletion() {
+            allScreens.result.classList.add('hidden');
+            allScreens.completion.classList.remove('hidden');
+            completionSynth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "1s", Tone.now());
+        }
+
+        function resetForNextScan() {
+            allScreens.result.classList.add('hidden');
+            allScreens.scan.classList.remove('hidden');
+            scanInput.value = '';
+            scanInput.focus();
+            isScanning = true;
+        }
+        
+        function resetApplication() {
+            allScreens.completion.classList.add('hidden');
+            allScreens.input.classList.remove('hidden');
+            dataInput.value = '';
+            fileNameEl.textContent = "or drag and drop";
+            fullBagDatabase = {}; priorityBagDatabase = {};
+            totalPriorityBags = 0; identifiedBagsCount = 0;
+            isScanning = false;
+        }
+
+        // --- Event Handlers ---
+        loadDataBtn.addEventListener('click', async () => {
+            if (Tone.context.state !== 'running') await Tone.start();
+            if(!successSynth) setupSynths();
+            if (parseData()) displayClusterSelection();
+        });
+        
+        startScanningBtn.addEventListener('click', prepareForScanning);
+
+        scanForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (!isScanning) return;
+            const bagId = scanInput.value.trim().toUpperCase();
+            if (bagId) showResult(bagId);
+        });
+
+        resetBtn.addEventListener('click', resetApplication);
+        document.body.addEventListener('click', () => { if (isScanning) scanInput.focus(); });
+        
+        // --- File Upload & Drag/Drop Handlers ---
+        function handleFiles(files) {
+            const file = files[0];
+            if (!file || !file.type.match('text/csv')) {
+                if(file) alert("Please upload a valid CSV file.");
+                return;
+            }
+            fileNameEl.textContent = file.name;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                dataInput.value = event.target.result;
+            };
+            reader.readAsText(file);
+        }
+
+        csvUpload.addEventListener('change', (e) => handleFiles(e.target.files));
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadLabel.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
+        });
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadLabel.addEventListener(eventName, () => uploadLabel.classList.add('bg-slate-700', 'border-blue-500'), false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadLabel.addEventListener(eventName, () => uploadLabel.classList.remove('bg-slate-700', 'border-blue-500'), false);
+        });
+        uploadLabel.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files), false);
+
+
+        // --- Data Parsing Functions ---
+        function parseData() {
+            const text = dataInput.value.trim();
+            if (!text) { alert("Please provide some data first."); return false; }
+            fullBagDatabase = {};
+            let parseSuccess = false;
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            if (lines.length === 0) { alert("Data is empty."); return false; }
+            const firstLine = lines[0].toLowerCase();
+
+            if (firstLine.includes('bags in cluster:')) {
+                parseSuccess = parseClusterSummaryData(lines);
+            } else if (firstLine.includes('\t') && firstLine.includes('bag_id') && firstLine.includes('cluster_id')) {
+                parseSuccess = parseTsvData(lines);
+            } else if (firstLine.includes(',') && firstLine.includes('bag_id') && firstLine.includes('cluster_id')) {
+                parseSuccess = parseCsvData(lines);
+            } else {
+                alert("Data format not recognized. Please use 'Bags in Cluster' format, or a comma/tab-separated list with 'bag_id' and 'cluster_id' headers.");
+                return false;
+            }
+            if (!parseSuccess || Object.keys(fullBagDatabase).length === 0) {
+                alert("Could not find any valid bag data. Please check the data format and content.");
+                return false;
+            }
+            return true;
+        }
+
+        function parseClusterSummaryData(lines) {
+            let currentCluster = "Unknown";
+            const clusterRegex = /Bags in Cluster:\s*(\S+)/i;
+            const bagRegex = /^(BAG[A-Z0-9]+)\s+.*?\s+(\d+)\s*\/\s*(\d+)/;
+            lines.forEach(line => {
+                const clusterMatch = line.match(clusterRegex);
+                if (clusterMatch) { currentCluster = clusterMatch[1]; } 
+                else {
+                    const bagMatch = line.match(bagRegex);
+                    if (bagMatch) {
+                        const [, bagId, shipments, totalShipments] = bagMatch;
+                        fullBagDatabase[bagId] = { cluster: currentCluster, shipments: parseInt(shipments, 10), totalShipments: parseInt(totalShipments, 10), scanned: false };
+                    }
+                }
+            });
+            return true;
+        }
+
+        function parseTsvData(lines) {
+            const header = lines[0].toLowerCase().split('\t').map(h => h.trim().replace(/^"|"$/g, ''));
+            return parseTabularData(lines, header, '\t');
+        }
+
+        function parseCsvData(lines) {
+            const header = lines[0].toLowerCase().split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+            return parseTabularData(lines, header, ',');
+        }
+
+        function parseTabularData(lines, header, delimiter) {
+            const bagIdIndex = header.indexOf('bag_id');
+            const clusterIdIndex = header.indexOf('cluster_id');
+            if (bagIdIndex === -1 || clusterIdIndex === -1) { return false; }
+            
+            const tempBagData = {};
+            for (let i = 1; i < lines.length; i++) {
+                // For each data row, split by delimiter and remove quotes from each part
+                const row = lines[i].split(delimiter).map(r => r.trim().replace(/^"|"$/g, ''));
+                if (row.length > Math.max(bagIdIndex, clusterIdIndex)) {
+                    const bagId = row[bagIdIndex];
+                    const clusterId = row[clusterIdIndex];
+                    if (bagId && clusterId && bagId !== 'NULL' && clusterId !== 'NULL' && bagId.startsWith('BAG')) {
+                        if (!tempBagData[bagId]) { tempBagData[bagId] = { cluster: clusterId, shipmentCount: 0 }; }
+                        tempBagData[bagId].shipmentCount++;
+                    }
+                }
+            }
+            for (const bagId in tempBagData) {
+                const data = tempBagData[bagId];
+                fullBagDatabase[bagId] = { cluster: data.cluster, shipments: data.shipmentCount, totalShipments: data.shipmentCount, scanned: false };
+            }
+            return true;
+        }
+
     </script>
 </body>
 </html>
