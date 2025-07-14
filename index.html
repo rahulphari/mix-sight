@@ -114,7 +114,7 @@
     <div id="result-screen" class="hidden h-full w-full absolute top-0 left-0 flex flex-col items-center justify-center text-white text-center p-4 transition-all-fast">
         <div id="result-status" class="text-8xl md:text-9xl font-black" style="text-shadow: 0 0 20px rgba(0,0,0,0.5);"></div>
         <div id="result-bag-id" class="text-4xl md:text-5xl font-semibold mt-2"></div>
-        <div id="result-bag-details" class="text-2xl mt-4 font-light"></div>
+        <div id="result-bag-details" class="text-lg mt-4 font-light max-w-2xl mx-auto"></div>
         <div id="result-stats" class="mt-10 grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl"></div>
         <footer class="absolute bottom-4 left-0 right-0 text-center text-xs text-white/70 tracking-wider">
             Designed & Crafted by Rh. For Internal Use Only.
@@ -165,6 +165,7 @@
         let priorityBagDatabase = {};
         let totalPriorityBags = 0;
         let identifiedBagsCount = 0;
+        let totalTargetShipments = 0;
         let isScanning = false;
 
         // --- Sound Synthesis ---
@@ -180,10 +181,14 @@
         function displayClusterSelection() {
             const clusters = {};
             for (const bagId in fullBagDatabase) {
-                const bag = fullBagDatabase[bagId];
-                if (!clusters[bag.cluster]) clusters[bag.cluster] = { bagCount: 0, shipmentCount: 0 };
-                clusters[bag.cluster].bagCount++;
-                clusters[bag.cluster].shipmentCount += bag.shipments;
+                const bagData = fullBagDatabase[bagId];
+                for (const clusterName in bagData.clusters) {
+                    if (!clusters[clusterName]) {
+                        clusters[clusterName] = { bagCount: 0, shipmentCount: 0 };
+                    }
+                    clusters[clusterName].bagCount++;
+                    clusters[clusterName].shipmentCount += bagData.clusters[clusterName];
+                }
             }
 
             clusterList.innerHTML = '';
@@ -207,19 +212,36 @@
         }
         
         function prepareForScanning() {
-            const selectedClusters = Array.from(document.querySelectorAll('.cluster-checkbox:checked')).map(cb => cb.value);
-            if (selectedClusters.length === 0) { alert("Please select at least one cluster."); return; }
+            const selectedClusters = new Set(Array.from(document.querySelectorAll('.cluster-checkbox:checked')).map(cb => cb.value));
+            if (selectedClusters.size === 0) { alert("Please select at least one cluster."); return; }
 
             priorityBagDatabase = {};
             let summaryHTML = '<div class="font-bold text-white mb-2">TARGETING:</div>';
+            
             for (const bagId in fullBagDatabase) {
-                const bag = fullBagDatabase[bagId];
-                if (selectedClusters.includes(bag.cluster)) priorityBagDatabase[bagId] = { ...bag, scanned: false };
+                const bagData = fullBagDatabase[bagId];
+                const bagClusters = Object.keys(bagData.clusters);
+                const intersection = bagClusters.filter(cluster => selectedClusters.has(cluster));
+                if (intersection.length > 0) {
+                    priorityBagDatabase[bagId] = { ...bagData };
+                }
             }
+            
+            totalTargetShipments = 0;
             selectedClusters.forEach(cluster => {
-                const bagsInCluster = Object.values(priorityBagDatabase).filter(b => b.cluster === cluster);
-                const shipmentsInCluster = bagsInCluster.reduce((sum, b) => sum + b.shipments, 0);
-                summaryHTML += `<div><span class="text-green-400 font-semibold">${cluster}</span>: ${bagsInCluster.length} Bags (${shipmentsInCluster} Shipments)</div>`;
+                let bagsInCluster = 0;
+                let shipmentsInCluster = 0;
+                for (const bagId in priorityBagDatabase) {
+                    const bagData = priorityBagDatabase[bagId];
+                    if (bagData.clusters[cluster]) {
+                        bagsInCluster++;
+                        shipmentsInCluster += bagData.clusters[cluster];
+                    }
+                }
+                if (bagsInCluster > 0) {
+                     summaryHTML += `<div><span class="text-green-400 font-semibold">${cluster}</span>: ${bagsInCluster} Bags (${shipmentsInCluster} Shipments)</div>`;
+                     totalTargetShipments += shipmentsInCluster;
+                }
             });
 
             clusterInfo.innerHTML = summaryHTML;
@@ -234,8 +256,20 @@
 
         function updateStatsDisplay() {
             const remainingBags = totalPriorityBags - identifiedBagsCount;
-            const identifiedShipments = Object.values(priorityBagDatabase).filter(b => b.scanned).reduce((sum, b) => sum + b.shipments, 0);
-            const totalTargetShipments = Object.values(priorityBagDatabase).reduce((sum, b) => sum + b.shipments, 0);
+            const selectedClustersSet = new Set(Array.from(document.querySelectorAll('.cluster-checkbox:checked')).map(cb => cb.value));
+            
+            let identifiedShipments = 0;
+            for (const bagId in priorityBagDatabase) {
+                const bagData = priorityBagDatabase[bagId];
+                if (bagData.scanned) {
+                    for (const clusterName in bagData.clusters) {
+                        if (selectedClustersSet.has(clusterName)) {
+                            identifiedShipments += bagData.clusters[clusterName];
+                        }
+                    }
+                }
+            }
+
             resultStats.innerHTML = `
                 <div class="bg-black/20 p-4 rounded-lg slide-up"><div class="text-5xl font-bold">${identifiedBagsCount}</div><div class="text-sm opacity-70">Target Bags Found</div></div>
                 <div class="bg-black/20 p-4 rounded-lg slide-up" style="animation-delay: 100ms;"><div class="text-5xl font-bold">${remainingBags}</div><div class="text-sm opacity-70">Bags Remaining</div></div>
@@ -251,6 +285,14 @@
             const isInMasterList = fullBagDatabase.hasOwnProperty(bagId);
 
             resultBagId.textContent = bagId;
+            let detailsHTML = '';
+
+            if (isInMasterList) {
+                const bagData = fullBagDatabase[bagId];
+                detailsHTML = Object.entries(bagData.clusters)
+                    .map(([cluster, count]) => `<div><strong class="text-white">${count}</strong> shipments for <strong class="text-white">${cluster}</strong></div>`)
+                    .join('');
+            }
 
             if (isPriority) {
                 const bagData = priorityBagDatabase[bagId];
@@ -260,13 +302,12 @@
                 }
                 allScreens.result.className = "h-full w-full absolute top-0 left-0 flex flex-col items-center justify-center text-white text-center p-4 transition-all-fast bg-gradient-to-br from-green-500 to-emerald-600";
                 resultStatus.textContent = 'PRIORITY';
-                resultBagDetails.innerHTML = `Contains <strong class="text-white">${bagData.shipments}</strong> shipments for <strong class="text-white">${bagData.cluster}</strong>`;
+                resultBagDetails.innerHTML = detailsHTML;
                 successSynth.triggerAttackRelease('C5', '0.5s');
             } else if (isInMasterList) {
-                const bagData = fullBagDatabase[bagId];
                 allScreens.result.className = "h-full w-full absolute top-0 left-0 flex flex-col items-center justify-center text-white text-center p-4 transition-all-fast bg-gradient-to-br from-blue-500 to-indigo-600";
                 resultStatus.textContent = 'NON-TARGET';
-                resultBagDetails.innerHTML = `Belongs to <strong class="text-white">${bagData.cluster}</strong>, which is not a current target.`;
+                resultBagDetails.innerHTML = detailsHTML;
                 nonTargetSynth.triggerAttackRelease('A3', '0.5s');
             } else {
                 allScreens.result.className = "h-full w-full absolute top-0 left-0 flex flex-col items-center justify-center text-white text-center p-4 transition-all-fast bg-gradient-to-br from-red-500 to-rose-600";
@@ -277,7 +318,7 @@
             
             updateStatsDisplay();
 
-            if (isPriority && identifiedBagsCount > 0 && identifiedBagsCount === totalPriorityBags) {
+            if (isPriority && totalPriorityBags > 0 && identifiedBagsCount === totalPriorityBags) {
                 setTimeout(showCompletion, 2500);
             } else {
                 setTimeout(resetForNextScan, 3000);
@@ -304,7 +345,7 @@
             dataInput.value = '';
             fileNameEl.textContent = "or drag and drop";
             fullBagDatabase = {}; priorityBagDatabase = {};
-            totalPriorityBags = 0; identifiedBagsCount = 0;
+            totalPriorityBags = 0; identifiedBagsCount = 0; totalTargetShipments = 0;
             isScanning = false;
         }
 
@@ -345,10 +386,7 @@
         csvUpload.addEventListener('change', (e) => handleFiles(e.target.files));
         
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            uploadLabel.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-            }, false);
+            uploadLabel.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
         });
         ['dragenter', 'dragover'].forEach(eventName => {
             uploadLabel.addEventListener(eventName, () => uploadLabel.classList.add('bg-slate-700', 'border-blue-500'), false);
@@ -396,8 +434,11 @@
                 else {
                     const bagMatch = line.match(bagRegex);
                     if (bagMatch) {
-                        const [, bagId, shipments, totalShipments] = bagMatch;
-                        fullBagDatabase[bagId] = { cluster: currentCluster, shipments: parseInt(shipments, 10), totalShipments: parseInt(totalShipments, 10), scanned: false };
+                        const [, bagId, shipmentsForThisCluster, totalShipments] = bagMatch;
+                        if (!fullBagDatabase[bagId]) {
+                            fullBagDatabase[bagId] = { clusters: {}, totalShipmentsInBag: parseInt(totalShipments, 10), scanned: false };
+                        }
+                        fullBagDatabase[bagId].clusters[currentCluster] = parseInt(shipmentsForThisCluster, 10);
                     }
                 }
             });
@@ -419,22 +460,22 @@
             const clusterIdIndex = header.indexOf('cluster_id');
             if (bagIdIndex === -1 || clusterIdIndex === -1) { return false; }
             
-            const tempBagData = {};
             for (let i = 1; i < lines.length; i++) {
-                // For each data row, split by delimiter and remove quotes from each part
                 const row = lines[i].split(delimiter).map(r => r.trim().replace(/^"|"$/g, ''));
                 if (row.length > Math.max(bagIdIndex, clusterIdIndex)) {
                     const bagId = row[bagIdIndex];
                     const clusterId = row[clusterIdIndex];
                     if (bagId && clusterId && bagId !== 'NULL' && clusterId !== 'NULL' && bagId.startsWith('BAG')) {
-                        if (!tempBagData[bagId]) { tempBagData[bagId] = { cluster: clusterId, shipmentCount: 0 }; }
-                        tempBagData[bagId].shipmentCount++;
+                        if (!fullBagDatabase[bagId]) {
+                            fullBagDatabase[bagId] = { clusters: {}, totalShipmentsInBag: 0, scanned: false };
+                        }
+                        if (!fullBagDatabase[bagId].clusters[clusterId]) {
+                            fullBagDatabase[bagId].clusters[clusterId] = 0;
+                        }
+                        fullBagDatabase[bagId].clusters[clusterId]++;
+                        fullBagDatabase[bagId].totalShipmentsInBag++;
                     }
                 }
-            }
-            for (const bagId in tempBagData) {
-                const data = tempBagData[bagId];
-                fullBagDatabase[bagId] = { cluster: data.cluster, shipments: data.shipmentCount, totalShipments: data.shipmentCount, scanned: false };
             }
             return true;
         }
