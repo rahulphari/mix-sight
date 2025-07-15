@@ -635,9 +635,24 @@
 
                 const filteredBags = state.fullAnalysisData.bags.filter(row => {
                     const checkRule = (rule) => {
+                        // Handle clusters as a special case
+                        if (rule.field === 'clusters') {
+                            const clusterList = Object.keys(row.clusters).map(c => c.toLowerCase());
+                            const filterValue = rule.value.toLowerCase();
+                            switch (rule.operator) {
+                                case 'is':
+                                case 'contains':
+                                    return clusterList.includes(filterValue);
+                                case 'is not':
+                                    return !clusterList.includes(filterValue);
+                                default:
+                                    return false;
+                            }
+                        }
+
+                        // Handle other fields
                         let rowValue = row[rule.field];
                         if (rowValue === null || rowValue === undefined) return false;
-                        if (rule.field === 'clusters') rowValue = Object.keys(rowValue).join(',');
 
                         let value = (rule.field === 'age_hours' || rule.field === 'wbn_count') ? parseFloat(rule.value) : rule.value;
                         const rowStringValue = String(rowValue).toLowerCase();
