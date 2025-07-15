@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -29,7 +29,7 @@
         }
         .cluster-card input[type="checkbox"]:checked + label {
             border-color: #3B82F6; /* blue-500 */
-            background: linear-gradient(145deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.05));
+            background: linear-gradient(145deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.1));
         }
         .cluster-card input[type="checkbox"] { display: none; }
         .cluster-card .checkmark {
@@ -41,13 +41,24 @@
             opacity: 1;
             transform: scale(1);
         }
+        .pending-bag-item:hover {
+            transform: scale(1.02);
+            background-color: #334155; /* slate-700 */
+        }
+        .accordion-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out;
+        }
         .fade-in { animation: fadeIn 0.5s ease-in-out forwards; }
         .slide-up { animation: slideUp 0.5s ease-in-out forwards; }
+        .fade-out { animation: fadeOut 0.4s ease-in-out forwards; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
-<body class="bg-slate-900 text-white h-screen overflow-hidden">
+<body class="text-white h-screen overflow-hidden">
 
     <!-- Data Input Screen -->
     <div id="input-screen" class="relative p-4 md:p-8 h-full flex flex-col">
@@ -56,7 +67,6 @@
             <p class="text-slate-300 mt-3 text-lg">Prioritize your mix-bag clog for minimal cut-off failures.</p>
         </div>
         
-        <!-- File Upload Section -->
         <div class="w-full max-w-2xl mx-auto slide-up">
             <label for="csv-upload" id="upload-label" class="w-full cursor-pointer bg-slate-800 hover:bg-slate-700 border-2 border-dashed border-slate-600 rounded-lg flex flex-col items-center justify-center p-6 transition-all-fast">
                 <svg class="w-10 h-10 text-slate-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l-3 3m3-3l3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" /></svg>
@@ -73,7 +83,7 @@
         </div>
 
         <div class="flex-grow flex flex-col slide-up" style="min-height: 150px;">
-            <textarea id="data-input" class="w-full flex-grow bg-slate-800 border-2 border-slate-700 rounded-lg p-4 text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Paste data here..."></textarea>
+            <textarea id="data-input" class="w-full flex-grow bg-slate-800 border-2 border-slate-700 rounded-lg p-4 text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Paste data here..."></textarea>
         </div>
         <button id="load-data-btn" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-lg text-xl transition-all-fast main-btn slide-up">
             Load & Analyze Data
@@ -99,12 +109,44 @@
     </div>
 
     <!-- Scanning Screen -->
-    <div id="scan-screen" class="hidden relative h-full flex flex-col items-center justify-center text-center p-4">
-        <h2 id="scan-title" class="text-8xl md:text-9xl font-black text-slate-700 animate-pulse">READY TO SCAN</h2>
-        <div class="mt-8">
-            <input type="text" id="scan-input" autocomplete="off" class="bg-slate-800 border-2 border-slate-700 rounded-lg p-4 text-3xl text-center w-full max-w-lg scan-input" placeholder="Awaiting Scan...">
+    <div id="scan-screen" class="hidden relative h-full flex flex-col p-4 md:p-8">
+        <!-- Top 1/3 -->
+        <div class="flex-1 flex items-center justify-center">
+             <h2 id="scan-title" class="text-8xl md:text-9xl font-black text-slate-700 animate-pulse">READY TO SCAN</h2>
         </div>
-         <div id="cluster-info" class="mt-8 text-slate-300 text-left max-w-2xl mx-auto bg-slate-800/50 p-4 rounded-lg"></div>
+        
+        <!-- Middle 1/3 -->
+        <div class="flex-1 flex flex-col items-center justify-center w-full">
+            <div class="w-full max-w-lg">
+                <input type="text" id="scan-input" autocomplete="off" class="bg-slate-800 border-2 border-slate-700 rounded-lg p-4 text-3xl text-center w-full scan-input" placeholder="Awaiting Scan...">
+            </div>
+            <div id="scan-progress-container" class="w-full max-w-lg mx-auto mt-8">
+                <div class="flex justify-between items-center mb-1">
+                    <span id="progress-text" class="text-sm font-medium text-slate-300">Scan Progress</span>
+                    <span id="progress-percentage" class="text-sm font-medium text-slate-300">0%</span>
+                </div>
+                <div class="w-full bg-slate-700 rounded-full h-2.5">
+                    <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all-fast" style="width: 0%"></div>
+                </div>
+            </div>
+             <div class="w-full max-w-lg mx-auto mt-4">
+                <div class="bg-slate-800/50 p-3 rounded-lg flex items-center justify-center gap-3">
+                    <label for="shipment-filter" class="text-slate-300 font-semibold">Skip bags with fewer than</label>
+                    <input type="number" id="shipment-filter" min="1" placeholder="X" class="w-16 bg-slate-700 border border-slate-600 rounded-md p-2 text-center text-white">
+                    <span class="text-slate-300">shipments</span>
+                    <button id="skip-bags-btn" class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-2 px-4 rounded-lg transition-all-fast">Skip</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom 1/3 -->
+        <div class="flex-1 w-full max-w-3xl mx-auto flex flex-col overflow-hidden">
+            <h3 class="font-bold text-slate-300 mb-2 flex-shrink-0 text-left">TARGETING:</h3>
+            <div id="accordion-wrapper" class="space-y-2 overflow-y-auto">
+                <!-- Accordion items will be injected here -->
+            </div>
+        </div>
+
         <footer class="absolute bottom-4 left-0 right-0 text-center text-xs text-slate-400 tracking-wider">
             Designed & Crafted by Rh. For Internal Use Only.
         </footer>
@@ -116,7 +158,19 @@
         <div id="result-bag-id" class="text-4xl md:text-5xl font-semibold mt-2"></div>
         <div id="result-bag-details" class="text-lg mt-4 font-light max-w-2xl mx-auto"></div>
         <div id="result-stats" class="mt-10 grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl"></div>
-        <footer class="absolute bottom-4 left-0 right-0 text-center text-xs text-white/70 tracking-wider">
+        <footer class="absolute bottom-4 left-0 right-0 text-center text-xs text-white/80 tracking-wider">
+            Designed & Crafted by Rh. For Internal Use Only.
+        </footer>
+    </div>
+    
+    <!-- Cluster Complete Screen -->
+    <div id="cluster-complete-screen" class="hidden h-full w-full absolute top-0 left-0 flex flex-col items-center justify-center text-white text-center p-4 transition-all-fast bg-gradient-to-br from-teal-500 to-cyan-600">
+        <div class="fade-in">
+            <h2 class="text-6xl md:text-7xl font-black text-white">CLUSTER COMPLETE</h2>
+            <p id="completed-cluster-name" class="text-3xl text-cyan-100 mt-4"></p>
+            <p id="completed-cluster-summary" class="text-xl text-cyan-200 mt-2"></p>
+        </div>
+         <footer class="absolute bottom-4 left-0 right-0 text-center text-xs text-white/80 tracking-wider">
             Designed & Crafted by Rh. For Internal Use Only.
         </footer>
     </div>
@@ -130,7 +184,7 @@
                 Start New Batch
             </button>
         </div>
-        <footer class="absolute bottom-4 left-0 right-0 text-center text-xs text-white/70 tracking-wider">
+        <footer class="absolute bottom-4 left-0 right-0 text-center text-xs text-white/80 tracking-wider">
             Designed & Crafted by Rh. For Internal Use Only.
         </footer>
     </div>
@@ -142,7 +196,8 @@
             clusterSelection: document.getElementById('cluster-selection-screen'),
             scan: document.getElementById('scan-screen'),
             result: document.getElementById('result-screen'),
-            completion: document.getElementById('completion-screen')
+            completion: document.getElementById('completion-screen'),
+            clusterComplete: document.getElementById('cluster-complete-screen'),
         };
         const dataInput = document.getElementById('data-input');
         const loadDataBtn = document.getElementById('load-data-btn');
@@ -153,11 +208,18 @@
         const resultBagId = document.getElementById('result-bag-id');
         const resultBagDetails = document.getElementById('result-bag-details');
         const resultStats = document.getElementById('result-stats');
-        const clusterInfo = document.getElementById('cluster-info');
         const resetBtn = document.getElementById('reset-btn');
         const csvUpload = document.getElementById('csv-upload');
         const uploadLabel = document.getElementById('upload-label');
         const fileNameEl = document.getElementById('file-name');
+        const progressText = document.getElementById('progress-text');
+        const progressPercentage = document.getElementById('progress-percentage');
+        const progressBar = document.getElementById('progress-bar');
+        const accordionWrapper = document.getElementById('accordion-wrapper');
+        const shipmentFilterInput = document.getElementById('shipment-filter');
+        const skipBagsBtn = document.getElementById('skip-bags-btn');
+        const completedClusterName = document.getElementById('completed-cluster-name');
+        const completedClusterSummary = document.getElementById('completed-cluster-summary');
 
         // --- State ---
         let fullBagDatabase = {};
@@ -169,11 +231,12 @@
         let scanDebounceTimer;
 
         // --- Sound Synthesis ---
-        let successSynth, errorSynth, completionSynth, nonTargetSynth;
+        let successSynth, errorSynth, completionSynth, nonTargetSynth, clusterCompleteSynth;
         function setupSynths() {
             successSynth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.5 } }).toDestination();
             errorSynth = new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.5 } }).toDestination();
             nonTargetSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.02, decay: 0.3, sustain: 0.2, release: 0.5 } }).toDestination();
+            clusterCompleteSynth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "amsine" }, envelope: { attack: 0.02, decay: 0.3, sustain: 0.5, release: 1 } }).toDestination();
             completionSynth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "triangle" } }).toDestination();
         }
 
@@ -216,46 +279,134 @@
             if (selectedClusters.size === 0) { alert("Please select at least one cluster."); return; }
 
             priorityBagDatabase = {};
-            let summaryHTML = '<div class="font-bold text-white mb-2">TARGETING:</div>';
             
             for (const bagId in fullBagDatabase) {
                 const bagData = fullBagDatabase[bagId];
                 const bagClusters = Object.keys(bagData.clusters);
-                const intersection = bagClusters.filter(cluster => selectedClusters.has(cluster));
-                if (intersection.length > 0) {
-                    priorityBagDatabase[bagId] = { ...bagData };
+                const hasTargetCluster = bagClusters.some(cluster => selectedClusters.has(cluster));
+
+                if (hasTargetCluster) {
+                    priorityBagDatabase[bagId] = { ...bagData, scanned: false };
                 }
             }
             
-            totalTargetShipments = 0;
-            selectedClusters.forEach(cluster => {
-                const bagsForThisCluster = Object.keys(priorityBagDatabase).filter(bagId => priorityBagDatabase[bagId].clusters[cluster]);
-                const shipmentsInCluster = bagsForThisCluster.reduce((sum, bagId) => sum + priorityBagDatabase[bagId].clusters[cluster], 0);
-
-                if (bagsForThisCluster.length > 0) {
-                    const bagListHTML = bagsForThisCluster.join('<br>');
-                    summaryHTML += `
-                        <div class="relative group py-1 cursor-default">
-                            <span class="text-green-400 font-semibold">${cluster}</span>: ${bagsForThisCluster.length} Bags (${shipmentsInCluster} Shipments)
-                            <div class="absolute bottom-full left-0 mb-2 w-max max-w-xs p-2 bg-slate-700 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                <h4 class="font-bold border-b border-slate-500 mb-1 pb-1">Pending Bags for ${cluster}</h4>
-                                <div class="max-h-40 overflow-y-auto pr-2 text-left">
-                                    ${bagListHTML}
-                                </div>
-                            </div>
-                        </div>`;
-                    totalTargetShipments += shipmentsInCluster;
-                }
-            });
-
-            clusterInfo.innerHTML = summaryHTML;
             totalPriorityBags = Object.keys(priorityBagDatabase).length;
             identifiedBagsCount = 0;
+            updateScanScreenStatus();
+            populatePendingListAccordion();
 
             allScreens.clusterSelection.classList.add('hidden');
             allScreens.scan.classList.remove('hidden');
             scanInput.focus();
             isScanning = true;
+        }
+        
+        function updateScanScreenStatus() {
+            const percent = totalPriorityBags > 0 ? (identifiedBagsCount / totalPriorityBags) * 100 : 0;
+            progressText.textContent = `${identifiedBagsCount} / ${totalPriorityBags} Bags Scanned`;
+            progressPercentage.textContent = `${Math.round(percent)}%`;
+            progressBar.style.width = `${percent}%`;
+        }
+
+        function populatePendingListAccordion() {
+            const selectedClustersSet = new Set(Array.from(document.querySelectorAll('.cluster-checkbox:checked')).map(cb => cb.value));
+            const groupedBags = {};
+
+            // Initialize groups for all selected clusters
+            selectedClustersSet.forEach(clusterName => {
+                groupedBags[clusterName] = { total: 0, pending: [], allBags: new Set() };
+            });
+
+            // Populate groups with bags
+            Object.keys(priorityBagDatabase).forEach(bagId => {
+                const bagData = priorityBagDatabase[bagId];
+                Object.keys(bagData.clusters).forEach(clusterName => {
+                    if (selectedClustersSet.has(clusterName)) {
+                        if (groupedBags[clusterName]) {
+                            if (!bagData.scanned) {
+                                groupedBags[clusterName].pending.push({
+                                    id: bagId,
+                                    shipmentCount: bagData.clusters[clusterName]
+                                });
+                            }
+                            groupedBags[clusterName].allBags.add(bagId);
+                        }
+                    }
+                });
+            });
+            
+            Object.keys(groupedBags).forEach(cluster => {
+                groupedBags[cluster].total = groupedBags[cluster].allBags.size;
+            });
+
+            let accordionHTML = '';
+            Object.keys(groupedBags).sort().forEach(clusterName => {
+                const clusterData = groupedBags[clusterName];
+                const isClusterComplete = clusterData.pending.length === 0;
+
+                const bagItemsHTML = clusterData.pending.map(bag => `
+                    <div id="pending-list-item-${bag.id}-${clusterName}" class="pending-bag-item p-2 bg-slate-800 rounded-md flex justify-between items-center text-sm transition-all-fast">
+                        <a href="https://hq.delhivery.com/bag/${bag.id}" target="_blank" class="font-semibold text-blue-400 hover:underline">${bag.id}</a>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs bg-slate-600 rounded-full px-2 py-1">${bag.shipmentCount} shipments</span>
+                            <button class="mark-complete-btn p-1 rounded-full hover:bg-green-500" data-bag-id="${bag.id}" title="Mark as complete">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+                accordionHTML += `
+                    <div class="accordion-item ${isClusterComplete ? 'opacity-50' : ''}">
+                        <button class="accordion-header w-full flex justify-between items-center p-3 bg-slate-700/50 hover:bg-slate-700 rounded-lg text-left" ${isClusterComplete ? 'disabled' : ''}>
+                            <span class="font-bold text-lg ${isClusterComplete ? 'text-green-500' : 'text-green-400'}">${clusterName}</span>
+                            <div class="flex items-center">
+                                <span class="pending-count text-sm font-medium text-slate-400 mr-3">${clusterData.pending.length}/${clusterData.total} bags pending</span>
+                                ${isClusterComplete 
+                                    ? `<svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>`
+                                    : `<svg class="accordion-icon w-5 h-5 text-slate-400 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>`
+                                }
+                            </div>
+                        </button>
+                        <div class="accordion-panel pt-2 space-y-2">
+                            ${bagItemsHTML || '<p class="text-slate-500 text-center text-sm p-2">All bags for this cluster are complete!</p>'}
+                        </div>
+                    </div>
+                `;
+            });
+
+            accordionWrapper.innerHTML = accordionHTML || '<p class="text-slate-400 text-center p-4">No pending bags for the selected clusters.</p>';
+            addAccordionEventListeners();
+        }
+        
+        function addAccordionEventListeners() {
+            document.querySelectorAll('.accordion-header').forEach(button => {
+                button.addEventListener('click', () => {
+                    const panel = button.nextElementSibling;
+                    const icon = button.querySelector('.accordion-icon');
+                    if(!icon) return; // Don't toggle completed clusters
+                    if (panel.style.maxHeight) {
+                        panel.style.maxHeight = null;
+                        icon.classList.remove('rotate-180');
+                    } else {
+                        document.querySelectorAll('.accordion-panel').forEach(p => {
+                            if(p !== panel) {
+                                p.style.maxHeight = null;
+                                p.previousElementSibling.querySelector('.accordion-icon')?.classList.remove('rotate-180');
+                            }
+                        });
+                        panel.style.maxHeight = panel.scrollHeight + "px";
+                        icon.classList.add('rotate-180');
+                    }
+                });
+            });
+            document.querySelectorAll('.mark-complete-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const bagId = e.currentTarget.dataset.bagId;
+                    processScannedBag(bagId, true); // true for manual completion
+                });
+            });
         }
 
         function updateStatsDisplay() {
@@ -263,13 +414,15 @@
             const selectedClustersSet = new Set(Array.from(document.querySelectorAll('.cluster-checkbox:checked')).map(cb => cb.value));
             
             let identifiedShipments = 0;
+            totalTargetShipments = 0;
             for (const bagId in priorityBagDatabase) {
                 const bagData = priorityBagDatabase[bagId];
-                if (bagData.scanned) {
-                    for (const clusterName in bagData.clusters) {
-                        if (selectedClustersSet.has(clusterName)) {
-                            identifiedShipments += bagData.clusters[clusterName];
+                for (const clusterName in bagData.clusters) {
+                    if (selectedClustersSet.has(clusterName)) {
+                        if(bagData.scanned) {
+                           identifiedShipments += bagData.clusters[clusterName];
                         }
+                        totalTargetShipments += bagData.clusters[clusterName];
                     }
                 }
             }
@@ -278,6 +431,38 @@
                 <div class="bg-black/20 p-4 rounded-lg slide-up"><div class="text-5xl font-bold">${identifiedBagsCount}</div><div class="text-sm opacity-70">Target Bags Found</div></div>
                 <div class="bg-black/20 p-4 rounded-lg slide-up" style="animation-delay: 100ms;"><div class="text-5xl font-bold">${remainingBags}</div><div class="text-sm opacity-70">Bags Remaining</div></div>
                 <div class="bg-black/20 p-4 rounded-lg slide-up" style="animation-delay: 200ms;"><div class="text-5xl font-bold">${identifiedShipments}/${totalTargetShipments}</div><div class="text-sm opacity-70">Shipments Identified</div></div>`;
+        }
+
+        function checkAndHandleClusterCompletion(bagId) {
+            const bagData = priorityBagDatabase[bagId];
+            if (!bagData) return;
+
+            const selectedClustersSet = new Set(Array.from(document.querySelectorAll('.cluster-checkbox:checked')).map(cb => cb.value));
+            
+            Object.keys(bagData.clusters).forEach(clusterName => {
+                if (!selectedClustersSet.has(clusterName)) return;
+
+                const bagsForThisCluster = Object.keys(priorityBagDatabase).filter(bId => priorityBagDatabase[bId].clusters[clusterName]);
+                const allScanned = bagsForThisCluster.every(bId => priorityBagDatabase[bId].scanned);
+
+                if (allScanned) {
+                    showClusterCompletion(clusterName, bagsForThisCluster.length);
+                }
+            });
+        }
+
+        function processScannedBag(bagId, isManual = false) {
+             const bagData = priorityBagDatabase[bagId];
+             if (bagData && !bagData.scanned) {
+                bagData.scanned = true;
+                identifiedBagsCount++;
+                updateScanScreenStatus();
+                populatePendingListAccordion();
+                if(!isManual) successSynth.triggerAttackRelease('C5', '0.5s');
+                checkAndHandleClusterCompletion(bagId);
+                return true;
+             }
+             return false;
         }
 
         function showResult(bagId) {
@@ -299,15 +484,10 @@
             }
 
             if (isPriority) {
-                const bagData = priorityBagDatabase[bagId];
-                if (!bagData.scanned) {
-                    bagData.scanned = true;
-                    identifiedBagsCount++;
-                }
+                processScannedBag(bagId);
                 allScreens.result.className = "h-full w-full absolute top-0 left-0 flex flex-col items-center justify-center text-white text-center p-4 transition-all-fast bg-gradient-to-br from-green-500 to-emerald-600";
                 resultStatus.textContent = 'PRIORITY';
                 resultBagDetails.innerHTML = detailsHTML;
-                successSynth.triggerAttackRelease('C5', '0.5s');
             } else if (isInMasterList) {
                 allScreens.result.className = "h-full w-full absolute top-0 left-0 flex flex-col items-center justify-center text-white text-center p-4 transition-all-fast bg-gradient-to-br from-blue-500 to-indigo-600";
                 resultStatus.textContent = 'NON-TARGET';
@@ -322,13 +502,29 @@
             
             updateStatsDisplay();
 
-            if (isPriority && totalPriorityBags > 0 && identifiedBagsCount === totalPriorityBags) {
+            if (totalPriorityBags > 0 && identifiedBagsCount === totalPriorityBags) {
                 setTimeout(showCompletion, 2500);
             } else {
                 setTimeout(resetForNextScan, 3000);
             }
         }
         
+        function showClusterCompletion(clusterName, bagCount) {
+            isScanning = false; // Pause scanning
+            allScreens.scan.classList.add('hidden');
+            allScreens.result.classList.add('hidden');
+            
+            completedClusterName.textContent = clusterName;
+            completedClusterSummary.textContent = `You've processed all ${bagCount} bags for this cluster.`;
+            allScreens.clusterComplete.classList.remove('hidden');
+            clusterCompleteSynth.triggerAttackRelease(["C4", "G4", "C5"], "1s");
+            
+            setTimeout(() => {
+                allScreens.clusterComplete.classList.add('hidden');
+                resetForNextScan();
+            }, 3000);
+        }
+
         function showCompletion() {
             allScreens.result.classList.add('hidden');
             allScreens.completion.classList.remove('hidden');
@@ -336,6 +532,8 @@
         }
 
         function resetForNextScan() {
+            updateScanScreenStatus();
+            populatePendingListAccordion();
             allScreens.result.classList.add('hidden');
             allScreens.scan.classList.remove('hidden');
             scanInput.value = '';
@@ -373,8 +571,34 @@
             }, 200); // Wait 200ms after last keystroke to process
         });
 
+        skipBagsBtn.addEventListener('click', () => {
+            const minShipments = parseInt(shipmentFilterInput.value, 10);
+            if (isNaN(minShipments) || minShipments < 1) {
+                alert("Please enter a valid number of shipments to skip.");
+                return;
+            }
+            let skippedCount = 0;
+            Object.keys(priorityBagDatabase).forEach(bagId => {
+                const bagData = priorityBagDatabase[bagId];
+                if (!bagData.scanned && bagData.totalShipmentsInBag < minShipments) {
+                    if(processScannedBag(bagId, true)) {
+                        skippedCount++;
+                    }
+                }
+            });
+            if(skippedCount > 0) {
+                 successSynth.triggerAttackRelease('E5', '0.5s');
+            }
+            shipmentFilterInput.value = '';
+            scanInput.focus();
+        });
+
         resetBtn.addEventListener('click', resetApplication);
-        document.body.addEventListener('click', () => { if (isScanning) scanInput.focus(); });
+        document.body.addEventListener('click', (e) => { 
+            if (isScanning && !e.target.closest('#accordion-wrapper')) {
+                 scanInput.focus();
+            }
+        });
         
         // --- File Upload & Drag/Drop Handlers ---
         function handleFiles(files) {
@@ -403,7 +627,6 @@
             uploadLabel.addEventListener(eventName, () => uploadLabel.classList.remove('bg-slate-700', 'border-blue-500'), false);
         });
         uploadLabel.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files), false);
-
 
         // --- Data Parsing Functions ---
         function parseData() {
