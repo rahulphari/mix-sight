@@ -101,9 +101,9 @@
     <!-- Scanning Screen -->
     <div id="scan-screen" class="hidden relative h-full flex flex-col items-center justify-center text-center p-4">
         <h2 id="scan-title" class="text-8xl md:text-9xl font-black text-slate-700 animate-pulse">READY TO SCAN</h2>
-        <form id="scan-form" class="mt-8">
+        <div class="mt-8">
             <input type="text" id="scan-input" autocomplete="off" class="bg-slate-800 border-2 border-slate-700 rounded-lg p-4 text-3xl text-center w-full max-w-lg scan-input" placeholder="Awaiting Scan...">
-        </form>
+        </div>
          <div id="cluster-info" class="mt-8 text-slate-300 text-left max-w-2xl mx-auto bg-slate-800/50 p-4 rounded-lg"></div>
         <footer class="absolute bottom-4 left-0 right-0 text-center text-xs text-slate-400 tracking-wider">
             Designed & Crafted by Rh. For Internal Use Only.
@@ -148,7 +148,6 @@
         const loadDataBtn = document.getElementById('load-data-btn');
         const clusterList = document.getElementById('cluster-list');
         const startScanningBtn = document.getElementById('start-scanning-btn');
-        const scanForm = document.getElementById('scan-form');
         const scanInput = document.getElementById('scan-input');
         const resultStatus = document.getElementById('result-status');
         const resultBagId = document.getElementById('result-bag-id');
@@ -167,6 +166,7 @@
         let identifiedBagsCount = 0;
         let totalTargetShipments = 0;
         let isScanning = false;
+        let scanDebounceTimer;
 
         // --- Sound Synthesis ---
         let successSynth, errorSynth, completionSynth, nonTargetSynth;
@@ -184,9 +184,9 @@
                 const bagData = fullBagDatabase[bagId];
                 for (const clusterName in bagData.clusters) {
                     if (!clusters[clusterName]) {
-                        clusters[clusterName] = { bagCount: 0, shipmentCount: 0 };
+                        clusters[clusterName] = { bagIds: new Set(), shipmentCount: 0 };
                     }
-                    clusters[clusterName].bagCount++;
+                    clusters[clusterName].bagIds.add(bagId);
                     clusters[clusterName].shipmentCount += bagData.clusters[clusterName];
                 }
             }
@@ -199,7 +199,7 @@
                         <input type="checkbox" id="cluster-${clusterName}" value="${clusterName}" class="cluster-checkbox">
                         <label for="cluster-${clusterName}" class="relative block p-4 rounded-lg border-2 border-slate-700 hover:border-blue-500 cursor-pointer transition-all-fast">
                             <div class="font-bold text-lg text-white">${clusterName}</div>
-                            <div class="text-sm text-slate-300 mt-1"><span class="font-semibold text-blue-400">${clusterData.bagCount}</span> Bags</div>
+                            <div class="text-sm text-slate-300 mt-1"><span class="font-semibold text-blue-400">${clusterData.bagIds.size}</span> Bags</div>
                             <div class="text-sm text-slate-300"><span class="font-semibold text-blue-400">${clusterData.shipmentCount}</span> Shipments</div>
                             <div class="checkmark absolute top-3 right-3 h-6 w-6 bg-blue-600 rounded-full flex items-center justify-center">
                                 <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
@@ -229,18 +229,22 @@
             
             totalTargetShipments = 0;
             selectedClusters.forEach(cluster => {
-                let bagsInCluster = 0;
-                let shipmentsInCluster = 0;
-                for (const bagId in priorityBagDatabase) {
-                    const bagData = priorityBagDatabase[bagId];
-                    if (bagData.clusters[cluster]) {
-                        bagsInCluster++;
-                        shipmentsInCluster += bagData.clusters[cluster];
-                    }
-                }
-                if (bagsInCluster > 0) {
-                     summaryHTML += `<div><span class="text-green-400 font-semibold">${cluster}</span>: ${bagsInCluster} Bags (${shipmentsInCluster} Shipments)</div>`;
-                     totalTargetShipments += shipmentsInCluster;
+                const bagsForThisCluster = Object.keys(priorityBagDatabase).filter(bagId => priorityBagDatabase[bagId].clusters[cluster]);
+                const shipmentsInCluster = bagsForThisCluster.reduce((sum, bagId) => sum + priorityBagDatabase[bagId].clusters[cluster], 0);
+
+                if (bagsForThisCluster.length > 0) {
+                    const bagListHTML = bagsForThisCluster.join('<br>');
+                    summaryHTML += `
+                        <div class="relative group py-1 cursor-default">
+                            <span class="text-green-400 font-semibold">${cluster}</span>: ${bagsForThisCluster.length} Bags (${shipmentsInCluster} Shipments)
+                            <div class="absolute bottom-full left-0 mb-2 w-max max-w-xs p-2 bg-slate-700 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                <h4 class="font-bold border-b border-slate-500 mb-1 pb-1">Pending Bags for ${cluster}</h4>
+                                <div class="max-h-40 overflow-y-auto pr-2 text-left">
+                                    ${bagListHTML}
+                                </div>
+                            </div>
+                        </div>`;
+                    totalTargetShipments += shipmentsInCluster;
                 }
             });
 
@@ -358,11 +362,15 @@
         
         startScanningBtn.addEventListener('click', prepareForScanning);
 
-        scanForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            if (!isScanning) return;
-            const bagId = scanInput.value.trim().toUpperCase();
-            if (bagId) showResult(bagId);
+        scanInput.addEventListener('input', () => {
+            clearTimeout(scanDebounceTimer);
+            scanDebounceTimer = setTimeout(() => {
+                if (!isScanning || scanInput.value.trim() === '') return;
+                
+                const bagId = scanInput.value.trim().toUpperCase();
+                showResult(bagId);
+                
+            }, 200); // Wait 200ms after last keystroke to process
         });
 
         resetBtn.addEventListener('click', resetApplication);
