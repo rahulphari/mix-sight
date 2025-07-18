@@ -96,6 +96,29 @@
             background-color: rgba(0,0,0,0.7);
             backdrop-filter: blur(5px);
         }
+
+        .bfsi-indicator, .rt-indicator {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: bold;
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 999px;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
+        .bfsi-indicator {
+            background-color: #ca8a04; /* yellow-600 */
+            color: #fefce8; /* yellow-50 */
+            box-shadow: 0 0 6px #facc15;
+        }
+        .rt-indicator {
+            background-color: #9333ea; /* purple-600 */
+            color: #f5f3ff; /* purple-50 */
+            box-shadow: 0 0 6px #a855f7;
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -104,7 +127,7 @@
     <div id="upload-screen" class="h-screen w-screen flex flex-col items-center justify-center p-4">
         <div class="text-center mb-8 fade-in">
             <h1 class="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-400">MIX-SIGHT</h1>
-            <p class="text-slate-300 mt-3 text-lg">Analyze Insights & Execute Scans for Mix Bags</p>
+            <p class="text-slate-300 mt-3 text-lg">Analyze Insights. Execute Scans for Mix Bags</p>
         </div>
         
         <div class="w-full max-w-2xl mx-auto slide-up">
@@ -117,7 +140,7 @@
         </div>
         <div id="upload-message" class="mt-4 text-center h-6"></div>
         <footer class="absolute bottom-6 text-center text-xs text-slate-500 tracking-wider">
-            Designed & Crafted by Rh. | for <svg class="h-4 w-4 inline-block text-yellow-400 -mt-1" viewBox="0 0 24 24" fill="currentColor"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Team Sonic - Hubli (for internal use only)
+            Designed & Crafted by Rh. | <svg class="h-4 w-4 inline-block text-yellow-400 -mt-1" viewBox="0 0 24 24" fill="currentColor"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Team Sonic - Hubli (for internal use only)
         </footer>
     </div>
 
@@ -156,17 +179,9 @@
                  <div class="glass-panel p-6">
                     <h2 class="section-title">🪄 Magic Filter</h2>
                     <div id="filter-rules-container" class="space-y-3"></div>
-                    <button id="add-rule-btn" class="mt-4 text-sm bg-blue-600 text-white py-1 px-3 rounded-md hover:bg-blue-500">+ Add Rule</button>
-                    <div class="flex items-center justify-between mt-4 bg-slate-900/50 p-3 rounded-md">
-                        <div>
-                            <span class="font-semibold text-sm">Match</span>
-                            <select id="filter-logic-selector" class="p-1 border rounded-md bg-slate-700 border-slate-600 text-sm">
-                                <option value="AND">ALL</option>
-                                <option value="OR">ANY</option>
-                            </select>
-                            <span class="font-semibold text-sm">rules.</span>
-                        </div>
-                        <button id="apply-magic-filter-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg text-sm hover:bg-green-500">Apply</button>
+                    <div class="flex justify-between items-center mt-4">
+                        <button id="add-rule-btn" class="text-sm bg-blue-600 text-white py-1 px-3 rounded-md hover:bg-blue-500">+ Add Rule</button>
+                        <button id="apply-magic-filter-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg text-sm hover:bg-green-500">Apply Filter</button>
                     </div>
                      <div class="mt-4 border-t border-slate-700 pt-4">
                          <button id="short-wbn-finder-btn" class="w-full text-center text-sm bg-amber-600 text-white py-2 px-3 rounded-md hover:bg-amber-500">Identify Potential Short WBNs</button>
@@ -186,7 +201,7 @@
         <!-- Detailed Display Pane -->
         <div class="mt-6 glass-panel">
              <h2 id="detail-view-header" class="section-title p-6 mb-0 flex justify-between items-center collapsible-header">
-                <div id="detail-view-title-text">Detailed Bag List</div>
+                <div id="detail-view-title-text" class="text-base">Detailed Bag List</div>
                 <span class="arrow-icon text-teal-400">▼</span>
             </h2>
             <div id="detail-view-content" class="collapsible-content">
@@ -300,6 +315,7 @@
         const addRuleBtn = document.getElementById('add-rule-btn');
         const applyMagicFilterBtn = document.getElementById('apply-magic-filter-btn');
         const shortWbnFinderBtn = document.getElementById('short-wbn-finder-btn');
+        const filterRulesContainer = document.getElementById('filter-rules-container');
 
         const endScanBtn = document.getElementById('end-scan-session-btn');
         const scanInput = document.getElementById('scan-input');
@@ -336,7 +352,7 @@
                 const headers = lines[0].trim().split(',').map(h => h.trim().replace(/"/g, '').replace(/ /g, '_').toLowerCase());
                 const requiredColumns = ['wbn', 'bag_id', 'bag_incoming_time', 'cluster_id'];
                 for (const col of requiredColumns) {
-                    if (!headers.includes(col)) throw new Error(`Missing required column: ${col}.`);
+                    if (!headers.includes(col)) console.warn(`Warning: Optional column not found: ${col}. Some features may be disabled.`);
                 }
 
                 const currentTime = new Date();
@@ -346,7 +362,13 @@
                     headers.forEach((header, index) => { row[header] = values[index] ? values[index].trim().replace(/"/g, '') : undefined; });
                     const incomingTime = new Date(row.bag_incoming_time);
                     if (isNaN(incomingTime) || !row.wbn) return null;
-                    return { ...row, bag_incoming_time_dt: incomingTime, age_hours: (currentTime - incomingTime) / (1000 * 60 * 60), cluster_id: row.cluster_id || 'UNKNOWN' };
+                    return { 
+                        ...row, 
+                        is_bfsi: ['true', '1'].includes(String(row.is_bfsi).toLowerCase()),
+                        bag_incoming_time_dt: incomingTime, 
+                        age_hours: (currentTime - incomingTime) / (1000 * 60 * 60), 
+                        cluster_id: row.cluster_id || 'UNKNOWN' 
+                    };
                 }).filter(Boolean);
 
                 if (shipments.length === 0) throw new Error("No valid records found for analysis.");
@@ -359,12 +381,17 @@
                             first_bag_incoming_time_dt: shipment.bag_incoming_time_dt,
                             bag_age_hours: shipment.age_hours,
                             wbns: new Set(),
-                            clusters: new Map()
+                            clusters: new Map(),
+                            has_bfsi: false,
+                            has_rt: false
                         });
                     }
                     const bag = bagAggregates.get(shipment.bag_id);
                     bag.wbns.add(shipment.wbn);
                     bag.clusters.set(shipment.cluster_id, (bag.clusters.get(shipment.cluster_id) || 0) + 1);
+                    if (shipment.is_bfsi) bag.has_bfsi = true;
+                    if (String(shipment.status).toUpperCase() === 'RT') bag.has_rt = true;
+
                     if (shipment.bag_incoming_time_dt < bag.first_bag_incoming_time_dt) {
                         bag.first_bag_incoming_time_dt = shipment.bag_incoming_time_dt;
                         bag.bag_age_hours = shipment.age_hours;
@@ -376,7 +403,9 @@
                     age_hours: bag.bag_age_hours,
                     age_str: `${Math.floor(bag.bag_age_hours)}h ${Math.floor((bag.bag_age_hours * 60) % 60)}m`,
                     wbn_count: bag.wbns.size,
-                    clusters: Object.fromEntries(bag.clusters.entries())
+                    clusters: Object.fromEntries(bag.clusters.entries()),
+                    has_bfsi: bag.has_bfsi,
+                    has_rt: bag.has_rt
                 }));
 
                 const cluster_details = {};
@@ -449,7 +478,7 @@
                 el.addEventListener('click', (e) => {
                     const category = e.currentTarget.dataset.ageCategory;
                     const groupData = state.fullAnalysisData.ageing_groups[category];
-                    if (groupData) renderDetailedBagTable(groupData.bags, category, `Ageing: ${category}`);
+                    if (groupData) renderDetailedBagTable({ bags: groupData.bags, context: { type: 'ageing', id: category }, title: `Ageing: ${category}` });
                 });
             });
 
@@ -476,7 +505,7 @@
                 btn.addEventListener('click', (e) => {
                     const clusterId = e.currentTarget.dataset.clusterId;
                     const clusterData = state.fullAnalysisData.cluster_details[clusterId];
-                    if (clusterData) renderDetailedBagTable(clusterData.bags, clusterId, `Cluster: ${clusterId}`);
+                    if (clusterData) renderDetailedBagTable({ bags: clusterData.bags, context: { type: 'cluster', ids: [clusterId] }, title: `Cluster: ${clusterId}` });
                 });
             });
             clusterSummaryListEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
@@ -489,11 +518,18 @@
             showScreen('dashboard');
         }
 
-        function renderDetailedBagTable(bags, contextId, title, sortKey = 'age_hours', sortDir = 'desc') {
-            state.currentDetailView = { type: 'bags', data: bags, contextId, sortKey, sortDir };
+        function renderDetailedBagTable({ bags, context, title, sortKey = 'age_hours', sortDir = 'desc' }) {
+            state.currentDetailView = { type: 'bags', data: bags, context, sortKey, sortDir };
 
-            const totalWbns = bags.reduce((sum, bag) => sum + bag.wbn_count, 0);
-            detailViewTitleText.textContent = `${title} (Bags: ${bags.length}, Shipments: ${totalWbns})`;
+            let titleSuffix = `(Bags: ${bags.length}, Total Shipments: ${bags.reduce((sum, bag) => sum + bag.wbn_count, 0)})`;
+            if (context.type === 'cluster' || context.type === 'filter') {
+                const clusterShipmentCounts = context.ids.map(clusterId => {
+                    const count = bags.reduce((sum, bag) => sum + (bag.clusters[clusterId] || 0), 0);
+                    return `Shipments for ${clusterId}: ${count}`;
+                }).join(', ');
+                titleSuffix = `(Bags: ${bags.length}, Total Shipments: ${bags.reduce((sum, bag) => sum + bag.wbn_count, 0)}, ${clusterShipmentCounts})`;
+            }
+            detailViewTitleText.textContent = `${title} ${titleSuffix}`;
 
             const sortedBags = [...bags].sort((a, b) => {
                 const valA = a[sortKey];
@@ -503,11 +539,20 @@
                 return 0;
             });
 
-            const headers = { bag_id: 'Bag ID', age_str: 'Age', wbn_count: 'WBNs' };
+            const isClusterView = context.type === 'cluster' || context.type === 'filter';
+            const headers = { bag_id: 'Bag ID', age_str: 'Age' };
+            if (isClusterView) {
+                headers['cluster_breakdown'] = 'Cluster Breakdown';
+            } else {
+                headers['wbn_count'] = 'WBNs';
+            }
+
             const headerHtml = Object.entries(headers).map(([key, value]) => {
-                const isSorted = key === sortKey;
+                const isSortable = ['bag_id', 'age_str', 'wbn_count'].includes(key);
+                const sortableKey = key === 'cluster_breakdown' ? 'wbn_count' : key;
+                const isSorted = sortableKey === sortKey;
                 const icon = isSorted ? (sortDir === 'asc' ? '▲' : '▼') : '';
-                return `<th class="sortable-header ${isSorted ? 'sorted' : ''}" data-sort-key="${key}">${value}<span class="sort-icon">${icon}</span></th>`;
+                return `<th class="${isSortable ? 'sortable-header' : ''} ${isSorted ? 'sorted' : ''}" data-sort-key="${sortableKey}">${value}<span class="sort-icon">${icon}</span></th>`;
             }).join('');
 
             detailViewListEl.innerHTML = `
@@ -515,16 +560,25 @@
                     <thead><tr>${headerHtml}</tr></thead>
                     <tbody>
                         ${sortedBags.map(bag => {
-                            let wbnDisplay = bag.wbn_count;
-                            if (state.fullAnalysisData.cluster_details[contextId]) {
-                                const wbnInCluster = bag.clusters[contextId] || 0;
-                                wbnDisplay = `${wbnInCluster} / ${bag.wbn_count}`;
+                            let wbnCellContent = '';
+                            if (isClusterView) {
+                                const breakdown = context.ids.map(id => `${id}: ${bag.clusters[id] || 0}`).join(' | ');
+                                wbnCellContent = `<td>Total: ${bag.wbn_count} | ${breakdown}</td>`;
+                            } else {
+                                wbnCellContent = `<td>${bag.wbn_count}</td>`;
                             }
+                            
                             return `
                             <tr>
-                                <td><a href="${BAG_URL_PREFIX}${bag.bag_id}/" target="_blank" class="text-blue-400 hover:underline">${bag.bag_id}</a></td>
+                                <td>
+                                    <div class="flex items-center">
+                                        <a href="${BAG_URL_PREFIX}${bag.bag_id}/" target="_blank" class="text-blue-400 hover:underline">${bag.bag_id}</a>
+                                        ${bag.has_bfsi ? '<span class="bfsi-indicator">$</span>' : ''}
+                                        ${bag.has_rt ? '<span class="rt-indicator">RT</span>' : ''}
+                                    </div>
+                                </td>
                                 <td>${bag.age_str}</td>
-                                <td>${wbnDisplay}</td>
+                                ${wbnCellContent}
                             </tr>`}).join('')}
                     </tbody>
                 </table>`;
@@ -580,16 +634,32 @@
             };
 
             const createRule = () => {
+                const ruleCount = filterRulesContainer.children.length;
                 const ruleDiv = document.createElement('div');
-                ruleDiv.className = 'grid grid-cols-1 md:grid-cols-4 gap-2 items-center';
+                ruleDiv.className = 'grid grid-cols-1 md:grid-cols-5 gap-2 items-center';
                 let fieldOptions = Object.keys(fields).map(name => `<option value="${fields[name]}">${name}</option>`).join('');
+                
+                let logicSelector = '';
+                if (ruleCount > 0) {
+                    logicSelector = `
+                        <select name="logic" class="p-2 border rounded-md bg-slate-800 border-slate-600 text-sm w-full">
+                            <option value="AND">AND</option>
+                            <option value="OR">OR</option>
+                        </select>`;
+                } else {
+                    logicSelector = `<div class="text-sm text-slate-400 text-center">WHERE</div>`;
+                }
+
                 ruleDiv.innerHTML = `
-                    <select name="field" class="p-2 border rounded-md bg-slate-700 border-slate-600 text-sm w-full">${fieldOptions}</select>
-                    <select name="operator" class="p-2 border rounded-md bg-slate-700 border-slate-600 text-sm w-full"></select>
-                    <div class="col-span-1"><input name="value" class="p-2 border rounded-md bg-slate-700 border-slate-600 text-sm w-full" placeholder="Enter value..."></div>
-                    <button class="bg-red-600 text-white px-2 py-1 rounded-md justify-self-end text-xs hover:bg-red-500">X</button>
+                    <div class="md:col-span-1">${logicSelector}</div>
+                    <div class="md:col-span-4 grid grid-cols-1 md:grid-cols-4 gap-2 items-center">
+                        <select name="field" class="p-2 border rounded-md bg-slate-700 border-slate-600 text-sm w-full">${fieldOptions}</select>
+                        <select name="operator" class="p-2 border rounded-md bg-slate-700 border-slate-600 text-sm w-full"></select>
+                        <div class="col-span-1"><input name="value" class="p-2 border rounded-md bg-slate-700 border-slate-600 text-sm w-full" placeholder="Enter value..."></div>
+                        <button class="bg-red-600 text-white px-2 py-1 rounded-md justify-self-end text-xs hover:bg-red-500">X</button>
+                    </div>
                 `;
-                document.getElementById('filter-rules-container').appendChild(ruleDiv);
+                filterRulesContainer.appendChild(ruleDiv);
 
                 const fieldSelect = ruleDiv.querySelector('select[name="field"]');
                 const opSelect = ruleDiv.querySelector('select[name="operator"]');
@@ -614,65 +684,84 @@
                 };
 
                 fieldSelect.addEventListener('change', updateRuleUI);
-                ruleDiv.querySelector('button').addEventListener('click', () => ruleDiv.remove());
+                ruleDiv.querySelector('button').addEventListener('click', () => {
+                    ruleDiv.remove();
+                    // If the first rule was removed, update the new first rule's logic display
+                    if (filterRulesContainer.children.length > 0) {
+                        const firstRuleLogic = filterRulesContainer.children[0].querySelector('select[name="logic"], div');
+                        if (firstRuleLogic.tagName === 'SELECT') {
+                            firstRuleLogic.outerHTML = `<div class="text-sm text-slate-400 text-center">WHERE</div>`;
+                        }
+                    }
+                });
                 updateRuleUI();
             };
             
             addRuleBtn.addEventListener('click', createRule);
 
             applyMagicFilterBtn.addEventListener('click', () => {
-                const logic = document.getElementById('filter-logic-selector').value;
-                const rules = Array.from(document.getElementById('filter-rules-container').querySelectorAll('.grid')).map(rd => ({
+                const rules = Array.from(filterRulesContainer.querySelectorAll('.grid.grid-cols-1')).map(rd => ({
+                    logic: rd.querySelector('select[name="logic"]') ? rd.querySelector('select[name="logic"]').value : 'INIT',
                     field: rd.querySelector('select[name="field"]').value,
                     operator: rd.querySelector('select[name="operator"]').value,
                     value: rd.querySelector('input[name="value"]').value
                 })).filter(r => r.value);
 
                 if (rules.length === 0) {
-                    renderDetailedBagTable(state.fullAnalysisData.bags, 'all', 'All Bags (No Filter)');
+                    renderDetailedBagTable({ bags: state.fullAnalysisData.bags, context: { type: 'all' }, title: 'All Pending Bags' });
                     return;
                 }
 
                 const filteredBags = state.fullAnalysisData.bags.filter(row => {
-                    const checkRule = (rule) => {
-                        // Handle clusters as a special case
-                        if (rule.field === 'clusters') {
-                            const clusterList = Object.keys(row.clusters).map(c => c.toLowerCase());
-                            const filterValue = rule.value.toLowerCase();
-                            switch (rule.operator) {
-                                case 'is':
-                                case 'contains':
-                                    return clusterList.includes(filterValue);
-                                case 'is not':
-                                    return !clusterList.includes(filterValue);
-                                default:
-                                    return false;
+                    let finalMatch = false;
+
+                    for (let i = 0; i < rules.length; i++) {
+                        const rule = rules[i];
+                        
+                        const checkRule = (r) => {
+                            if (r.field === 'clusters') {
+                                const clusterList = Object.keys(row.clusters).map(c => c.toLowerCase());
+                                const filterValue = r.value.toLowerCase();
+                                switch (r.operator) {
+                                    case 'is': case 'contains': return clusterList.includes(filterValue);
+                                    case 'is not': return !clusterList.includes(filterValue);
+                                    default: return false;
+                                }
+                            }
+                            let rowValue = row[r.field];
+                            if (rowValue === null || rowValue === undefined) return false;
+                            let value = (r.field === 'age_hours' || r.field === 'wbn_count') ? parseFloat(r.value) : r.value;
+                            const rowStringValue = String(rowValue).toLowerCase();
+                            const valueString = String(value).toLowerCase();
+                            switch (r.operator) {
+                                case 'is': return rowStringValue == valueString;
+                                case 'is not': return rowStringValue != valueString;
+                                case 'contains': return rowStringValue.includes(valueString);
+                                case '>': return rowValue > value;
+                                case '<': return rowValue < value;
+                                case '==': return rowValue == value;
+                                case '>=': return rowValue >= value;
+                                case '<=': return rowValue <= value;
+                                default: return false;
+                            }
+                        };
+                        
+                        const currentMatch = checkRule(rule);
+
+                        if (i === 0) {
+                            finalMatch = currentMatch;
+                        } else {
+                            if (rule.logic === 'AND') {
+                                finalMatch = finalMatch && currentMatch;
+                            } else if (rule.logic === 'OR') {
+                                finalMatch = finalMatch || currentMatch;
                             }
                         }
-
-                        // Handle other fields
-                        let rowValue = row[rule.field];
-                        if (rowValue === null || rowValue === undefined) return false;
-
-                        let value = (rule.field === 'age_hours' || rule.field === 'wbn_count') ? parseFloat(rule.value) : rule.value;
-                        const rowStringValue = String(rowValue).toLowerCase();
-                        const valueString = String(value).toLowerCase();
-
-                        switch (rule.operator) {
-                            case 'is': return rowStringValue == valueString;
-                            case 'is not': return rowStringValue != valueString;
-                            case 'contains': return rowStringValue.includes(valueString);
-                            case '>': return rowValue > value;
-                            case '<': return rowValue < value;
-                            case '==': return rowValue == value;
-                            case '>=': return rowValue >= value;
-                            case '<=': return rowValue <= value;
-                            default: return false;
-                        }
-                    };
-                    return (logic === 'AND') ? rules.every(checkRule) : rules.some(checkRule);
+                    }
+                    return finalMatch;
                 });
-                renderDetailedBagTable(filteredBags, 'filter', 'Filtered Results');
+                const clusterIdsInFilter = rules.filter(r => r.field === 'clusters').map(r => r.value);
+                renderDetailedBagTable({ bags: filteredBags, context: { type: 'filter', ids: clusterIdsInFilter }, title: 'Filtered Results' });
             });
         }
 
@@ -773,7 +862,7 @@
             if (isManual) {
                  synths.success.triggerAttackRelease('C5', '0.2s');
             } else {
-                showResultOverlay('PRIORITY', bagId, targetBagData, 'from-green-500/80 to-teal-600/80');
+                showResultOverlay('PRIORITY', bagId, targetBagData, 'from-green-500/80 to-green-600/80');
                 synths.success.triggerAttackRelease('C5', '0.5s');
             }
             
@@ -792,10 +881,10 @@
             if (targetBagData) {
                 markBagAsFound(bagId, false);
             } else if (bagData) {
-                showResultOverlay('NON-TARGET', bagId, bagData, 'from-blue-500/80 to-indigo-600/80');
+                showResultOverlay('NON-TARGET', bagId, bagData, 'from-slate-500/80 to-slate-600/80');
                 synths.nonTarget.triggerAttackRelease('A3', '0.5s');
             } else {
-                showResultOverlay('NOT IN LIST', bagId, null, 'from-red-500/80 to-rose-600/80');
+                showResultOverlay('NOT IN LIST', bagId, null, 'from-amber-500/80 to-amber-600/80');
                 synths.error.triggerAttackRelease('C3', '0.5s');
             }
         }
@@ -856,7 +945,6 @@
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eName => uploadLabel.addEventListener(eName, (e) => { e.preventDefault(); e.stopPropagation(); }));
         ['dragenter', 'dragover'].forEach(eName => uploadLabel.addEventListener(eName, () => uploadLabel.classList.add('border-teal-400')));
         ['dragleave', 'drop'].forEach(eName => uploadLabel.addEventListener(eName, () => uploadLabel.classList.remove('border-teal-400')));
-        uploadLabel.addEventListener('drop', (e) => handleFile(e.dataTransfer.files[0]));
         
         document.body.addEventListener('click', async () => { if (Tone.context.state !== 'running') await Tone.start(); setupSynths(); }, { once: true });
 
@@ -864,7 +952,7 @@
         startScanBtn.addEventListener('click', initializeScanSession);
         endScanBtn.addEventListener('click', endSession);
         finishSessionBtn.addEventListener('click', endSession);
-        viewAllBagsBtn.addEventListener('click', () => renderDetailedBagTable(state.fullAnalysisData.bags, 'all', 'All Pending Bags'));
+        viewAllBagsBtn.addEventListener('click', () => renderDetailedBagTable({ bags: state.fullAnalysisData.bags, context: { type: 'all' }, title: 'All Pending Bags' }));
         
         detailViewHeader.addEventListener('click', (e) => {
             const icon = e.currentTarget.querySelector('.arrow-icon');
@@ -876,12 +964,12 @@
             const header = e.target.closest('.sortable-header');
             if (!header) return;
             
-            const { type, data, contextId, sortKey: oldSortKey, sortDir: oldSortDir } = state.currentDetailView;
+            const { type, data, context, sortKey: oldSortKey, sortDir: oldSortDir } = state.currentDetailView;
             const newSortKey = header.dataset.sortKey;
             const newSortDir = (newSortKey === oldSortKey && oldSortDir === 'desc') ? 'asc' : 'desc';
 
             if (type === 'bags') {
-                renderDetailedBagTable(data, contextId, detailViewTitleText.textContent.split(' (')[0], newSortKey, newSortDir);
+                renderDetailedBagTable({ bags: data, context, title: detailViewTitleText.textContent.split(' (')[0], sortKey: newSortKey, sortDir: newSortDir });
             } else if (type === 'wbns') {
                 renderWbnTable(data, detailViewTitleText.textContent.split(' (')[0], newSortKey, newSortDir);
             }
