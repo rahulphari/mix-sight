@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIX-SIGHT (Analyser)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- JSZip for handling zip files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Chart.js and Datalabels plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.1.0"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a; /* slate-900 */
+            --panel-bg: rgba(30, 41, 59, 0.5); /* slate-800 with transparency */
+            --panel-border: rgba(51, 65, 85, 0.7); /* slate-700 */
+            --text-primary: #f1f5f9; /* slate-100 */
+            --text-secondary: #94a3b8; /* slate-400 */
+            --text-readable: #e5e7eb; /* slate-200, for charts */
+            --accent-color: #f43f5e; /* rose-500 */
+            --accent-hover: #fb7185; /* rose-400 */
+            --teal-color: #2dd4bf; /* teal-400 */
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0);
+            background-size: 2rem 2rem;
+        }
+        .glass-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 0.75rem;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .section-title {
+            font-size: 1.1rem; font-weight: 700; color: var(--text-primary);
+            padding-bottom: 0.5rem; border-bottom: 1px solid var(--panel-border); margin-bottom: 1rem;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .fade-in { animation: fadeIn 0.6s ease-in-out forwards; }
+        .slide-up { animation: slideUp 0.6s ease-in-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Custom styles for Analyser */
+        .main-title { font-size: 3rem; font-weight: 900; color: var(--text-primary); }
+        .main-title sub { font-size: 1.25rem; font-weight: 500; color: var(--accent-color); bottom: -0.25em; margin-left: 0.25rem; }
+        #file-list-container { max-height: 150px; overflow-y: auto; }
+        .file-item { display: flex; justify-content: space-between; align-items: center; background-color: rgba(255,255,255,0.05); padding: 0.5rem 0.75rem; border-radius: 0.375rem; font-size: 0.875rem; }
+        .file-status { font-weight: 600; }
+        .status-processing { color: #f59e0b; }
+        .status-ok { color: #4ade80; }
+        .status-error { color: var(--accent-color); }
+
+        .tab-btn { padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 600; color: var(--text-secondary); background-color: transparent; border: 1px solid transparent; transition: all 0.3s ease; }
+        .tab-btn.active { color: var(--accent-color); background-color: rgba(244, 63, 94, 0.1); border-color: var(--accent-color); }
+        .kpi-card { background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; border-left: 3px solid var(--teal-color); }
+        .kpi-title { font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.25rem; }
+        .kpi-value { font-size: 1.75rem; font-weight: 700; color: var(--text-primary); }
+        .kpi-percent { font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); margin-left: 0.5rem; }
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th, .data-table td { padding: 0.5rem; text-align: left; border-bottom: 1px solid var(--panel-border); font-size: 0.8rem; }
+        .data-table th { font-weight: 600; color: var(--text-secondary); }
+        .clickable-value { cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-decoration-color: var(--teal-color); }
+        .clickable-value:hover { color: var(--teal-color); }
+        
+        .adhoc-stamp-wrapper { position: relative; display: inline-block; }
+        .adhoc-stamp {
+            display: none; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-15deg);
+            background-color: rgba(244, 63, 94, 0.7); color: white; font-size: 0.7rem; font-weight: bold;
+            padding: 0.1rem 0.5rem; border-radius: 0.25rem; pointer-events: none; z-index: 10;
+        }
+        .adhoc-stamp-wrapper:hover .adhoc-stamp { display: block; }
+        .title-icon { cursor: pointer; color: var(--text-secondary); transition: color 0.2s; }
+        .title-icon:hover { color: var(--text-primary); }
+        
+        #wbn-detail-board { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-in-out; }
+        #wbn-detail-board.open { max-height: 1000px; }
+        #wbn-table-container { max-height: 400px; overflow-y: auto; }
+
+        /* Modal Styles */
+        .modal-overlay { position: fixed; inset: 0; background-color: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 40; display: none;}
+        .modal-content { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 50; width: 90%; max-width: 800px; display: none;}
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Screen: Upload -->
+    <div id="upload-screen" class="min-h-screen w-screen flex flex-col items-center justify-center p-4 relative">
+        <div class="text-center mb-8 fade-in">
+            <h1 class="main-title">MIX-SIGHT<sub>(Analyser)</sub></h1>
+            <p class="text-slate-300 mt-3 text-lg">Uncover the 'Why' Behind Every Delay.</p>
+        </div>
+        
+        <div class="w-full max-w-3xl mx-auto slide-up space-y-6">
+            <div class="glass-panel p-4 text-center">
+                <p class="text-sm text-slate-400 mb-2">First Step: Get the latest failure data from the source.</p>
+                <a href="https://mail.google.com/mail/u/0/#search/non_sorter+-+mix+failure+%3A+scheduled+query+results+available" target="_blank" class="inline-block bg-teal-600/80 text-white font-semibold py-2 px-5 rounded-lg hover:bg-teal-600 transition-all">
+                    Fetch Latest Failure Data
+                </a>
+            </div>
+
+            <label for="zip-upload" id="upload-label" class="w-full cursor-pointer glass-panel hover:border-accent-color flex flex-col items-center justify-center p-8 transition-colors duration-300">
+                <svg class="w-12 h-12 text-slate-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l3 3m0 0l3-3m-3 3V2.25" /></svg>
+                <span class="font-semibold text-xl text-slate-200">Drop Failure Reports Here</span>
+                <span id="file-name" class="text-sm text-slate-400 mt-1">Or click to select files</span>
+            </label>
+            <input type="file" id="zip-upload" class="hidden" accept=".zip,application/zip" multiple>
+        
+            <div id="file-list-container-wrapper" class="glass-panel p-4 hidden">
+                 <h3 class="text-md font-semibold text-slate-300 mb-2">Ready for Analysis:</h3>
+                 <div id="file-list-container" class="space-y-2"></div>
+            </div>
+
+            <div class="text-center">
+                <button id="process-files-btn" class="bg-accent-color text-white font-bold py-3 px-8 rounded-lg text-lg hover:bg-accent-hover transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Initiate Analysis</button>
+            </div>
+        </div>
+        <footer class="absolute bottom-6 text-center text-xs text-slate-500 tracking-wider">
+            Designed & Crafted by Rh. | <svg class="h-4 w-4 inline-block text-yellow-400 -mt-1" viewBox="0 0 24 24" fill="currentColor"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Team Sonic - Hubli (for internal use only)
+        </footer>
+    </div>
+
+    <!-- Screen: Dashboard -->
+    <div id="dashboard-screen" class="hidden p-4 md:p-6 relative">
+        <header class="flex flex-col md:flex-row justify-between items-center mb-4">
+            <h1 class="main-title">MIX-SIGHT<sub>(Analyser)</sub></h1>
+            <button id="return-to-upload-btn" class="text-sm text-slate-400 hover:text-white transition mt-4 md:mt-0">Load New Data</button>
+        </header>
+
+        <div id="tabs-container" class="mb-6 border-b border-panel-border"></div>
+        <div id="dashboard-content"></div>
+        <div id="wbn-detail-board" class="mt-6"></div>
+        <footer class="mt-12 text-center text-xs text-slate-500 tracking-wider">
+            Designed & Crafted by Rh. | <svg class="h-4 w-4 inline-block text-yellow-400 -mt-1" viewBox="0 0 24 24" fill="currentColor"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Team Sonic - Hubli (for internal use only)
+        </footer>
+    </div>
+
+    <!-- Modal for Detailed RCA -->
+    <div id="modal-overlay" class="modal-overlay"></div>
+    <div id="modal-content" class="modal-content">
+        <div class="glass-panel p-6">
+            <div id="modal-header" class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Deeper Analysis</h2>
+                <button id="modal-close-btn" class="text-2xl text-slate-400 hover:text-white">&times;</button>
+            </div>
+            <div id="modal-body" class="text-slate-300 leading-relaxed max-h-[60vh] overflow-y-auto pr-2"></div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const state = {
+            files: [],
+            allData: [],
+            analysis: {},
+            activeTab: 'consolidated'
+        };
+        const TARGET_FACILITY = 'Hubli_Budarshingi_H (Karnataka)';
+
+        // --- DOM Elements ---
+        const screens = { upload: document.getElementById('upload-screen'), dashboard: document.getElementById('dashboard-screen') };
+        const zipUploadInput = document.getElementById('zip-upload');
+        const uploadLabel = document.getElementById('upload-label');
+        const fileListContainer = document.getElementById('file-list-container');
+        const fileListWrapper = document.getElementById('file-list-container-wrapper');
+        const processFilesBtn = document.getElementById('process-files-btn');
+        const returnToUploadBtn = document.getElementById('return-to-upload-btn');
+        const tabsContainer = document.getElementById('tabs-container');
+        const dashboardContent = document.getElementById('dashboard-content');
+        const wbnDetailBoard = document.getElementById('wbn-detail-board');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+
+        let charts = {};
+        Chart.register(ChartDataLabels);
+
+        const showScreen = (screenName) => {
+            Object.values(screens).forEach(s => s.classList.add('hidden'));
+            if (screens[screenName]) screens[screenName].classList.remove('hidden');
+        };
+
+        const pluralize = (count, singular, plural = null) => {
+            if (!plural) plural = singular + 's';
+            return `${count.toLocaleString()} ${count === 1 ? singular : plural}`;
+        }
+        
+        const getTopN = (data, key, countKey = null) => {
+            const counts = data.reduce((acc, item) => {
+                const value = item[key];
+                if (value) {
+                    if (!acc[value]) acc[value] = { count: 0, raw: [] };
+                    acc[value].count += (countKey ? (item[countKey] || 1) : 1);
+                    acc[value].raw.push(item);
+                }
+                return acc;
+            }, {});
+            return Object.entries(counts)
+                .map(([name, data]) => ({ name, ...data }))
+                .sort((a, b) => b.count - a.count);
+        };
+
+        const handleFileUpload = (files) => {
+            state.files = Array.from(files).map(file => ({ file, status: 'pending', message: 'Waiting to process...' }));
+            renderFileList();
+            processFilesBtn.disabled = state.files.length === 0;
+        };
+
+        const renderFileList = () => {
+            if (state.files.length === 0) {
+                fileListWrapper.classList.add('hidden');
+                return;
+            }
+            fileListWrapper.classList.remove('hidden');
+            fileListContainer.innerHTML = state.files.map(f => `<div class="file-item"><span>${f.file.name}</span><span class="file-status status-${f.status.toLowerCase()}">${f.status}</span></div>`).join('');
+        };
+
+        const processFiles = async () => {
+            processFilesBtn.disabled = true;
+            processFilesBtn.textContent = 'Processing...';
+            state.allData = [];
+
+            for (const fileObj of state.files) {
+                fileObj.status = 'Processing';
+                renderFileList();
+                try {
+                    const jszip = new JSZip();
+                    const zip = await jszip.loadAsync(fileObj.file);
+                    const csvFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.csv'));
+                    if (!csvFile) throw new Error('No CSV file found in ZIP.');
+                    const csvContent = await csvFile.async('string');
+                    const parsedData = parseCSV(csvContent);
+                    state.allData.push(...parsedData);
+                    fileObj.status = 'OK';
+                } catch (e) {
+                    fileObj.status = 'Error';
+                    console.error(`Error processing ${fileObj.file.name}:`, e);
+                }
+                renderFileList();
+            }
+            
+            state.allData = state.allData.filter(row => row.facility === TARGET_FACILITY);
+            runFullAnalysis();
+            renderDashboard();
+            showScreen('dashboard');
+            processFilesBtn.textContent = 'Initiate Analysis';
+        };
+
+        const parseCSV = (csvContent) => {
+            const lines = csvContent.trim().split('\n');
+            if (lines.length < 2) return [];
+            const headers = lines[0].trim().split(',').map(h => h.trim().replace(/"/g, ''));
+            return lines.slice(1).map(line => {
+                const values = line.trim().split(',');
+                let row = {};
+                headers.forEach((h, i) => row[h] = values[i] ? values[i].trim().replace(/"/g, '') : '');
+                return row;
+            });
+        };
+
+        const runFullAnalysis = () => {
+            const dataByDate = state.allData.reduce((acc, row) => {
+                const date = row.dat;
+                if (!acc[date]) acc[date] = [];
+                acc[date].push(row);
+                return acc;
+            }, {});
+
+            state.analysis = {};
+            for (const date in dataByDate) {
+                state.analysis[date] = analyzeDataset(dataByDate[date]);
+            }
+            state.analysis.consolidated = analyzeDataset(state.allData);
+        };
+
+        const analyzeDataset = (data) => {
+            if (data.length === 0) return { totalFailures: 0 };
+
+            const totalFailures = data.length;
+            const breachBuckets = getTopN(data, 'breach_bucket');
+            const topNTC = getTopN(data, 'ntc_hq_name').slice(0, 5);
+            const topTripsIn = getTopN(data, 'trip_id_in').slice(0, 5);
+            
+            const cartingData = data.filter(r => r.ntc_hq_name && (r.ntc_hq_name.endsWith('_D (Karnataka)') || r.ntc_hq_name.endsWith('_DPP (Karnataka)')));
+            const cartingAnalysis = {
+                failures: cartingData.length,
+                topNTCs: getTopN(cartingData, 'ntc_hq_name').slice(0, 5)
+            };
+
+            const yardDelays = data.filter(r => r.breach_bucket === 'Yard delay');
+            const topYardDelayTrip = getTopN(yardDelays, 'trip_id_in')[0];
+
+            return {
+                totalFailures,
+                breachBuckets,
+                topNTC,
+                topTripsIn,
+                cartingAnalysis,
+                topYardDelayTrip,
+                rawData: data
+            };
+        };
+        
+        const generateRCASummary = (analysisData, period) => {
+            if (!analysisData || analysisData.totalFailures === 0) return `No failure data found for ${period}.`;
+            const { totalFailures, breachBuckets, topYardDelayTrip, cartingAnalysis, topNTC } = analysisData;
+            const primaryBreach = breachBuckets[0] || {name: 'N/A', count: 0};
+            let summary = `For ${period}, the <strong>${TARGET_FACILITY}</strong> facility recorded <strong>${pluralize(totalFailures, 'failure')}</strong>. `;
+            summary += `The primary cause was <strong>${primaryBreach.name.toLowerCase()}</strong>, accounting for <strong>${pluralize(primaryBreach.count, 'case')}</strong> (${((primaryBreach.count/totalFailures)*100).toFixed(0)}%). `;
+            if (primaryBreach.name === 'Yard delay' && topYardDelayTrip) {
+                summary += `A major contributor was trip <strong>${topYardDelayTrip.name}</strong>, responsible for <strong>${pluralize(topYardDelayTrip.count, 'yard delay failure')}</strong>. `;
+            }
+            if (cartingAnalysis && cartingAnalysis.failures > 0) {
+                const topCartingNTC = cartingAnalysis.topNTCs[0] ? `maj: ${cartingAnalysis.topNTCs[0].name}` : '';
+                summary += `Failures on <strong>carting lanes</strong> totaled <strong>${cartingAnalysis.failures}</strong> (${topCartingNTC}). `;
+            }
+            if (topNTC.length > 0) {
+                const impactedNTCs = topNTC.slice(0, 3).map(ntc => `${ntc.name} (${ntc.count})`).join(', ');
+                summary += `Key impacted NTCs included ${impactedNTCs}.`;
+            }
+            return summary;
+        };
+
+        const renderDashboard = () => {
+            renderTabs();
+            renderTabContent(state.activeTab);
+        };
+
+        const renderTabs = () => {
+            const dates = Object.keys(state.analysis).filter(k => k !== 'consolidated').sort();
+            tabsContainer.innerHTML = `<button class="tab-btn ${state.activeTab === 'consolidated' ? 'active' : ''}" data-tab="consolidated">Consolidated View</button>
+                ${dates.map(date => `<button class="tab-btn ${state.activeTab === date ? 'active' : ''}" data-tab="${date}">${date}</button>`).join('')}`;
+        };
+        
+        const renderTabContent = (tabId) => {
+            state.activeTab = tabId;
+            const data = state.analysis[tabId];
+            const period = tabId === 'consolidated' ? `the selected period (${Object.keys(state.analysis).length - 1} days)` : `the day of ${tabId}`;
+            
+            if (!data || !data.totalFailures) {
+                dashboardContent.innerHTML = `<div class="glass-panel p-8 text-center"><p class="text-slate-400">No data available for this period.</p></div>`;
+                return;
+            }
+
+            const topBreach = data.breachBuckets[0];
+            const topBreachPercent = topBreach ? ((topBreach.count / data.totalFailures) * 100).toFixed(0) + '%' : '0%';
+
+            dashboardContent.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <div class="lg:col-span-2 glass-panel p-6">
+                        <div class="section-title">
+                            <span>Automated RCA Summary</span>
+                            <div class="flex items-center gap-4">
+                                <button id="generate-detailed-rca-btn" class="text-sm bg-teal-600/80 text-white py-1 px-3 rounded-md hover:bg-teal-600">Generate Deeper Analysis</button>
+                                <svg id="copy-summary-btn" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 title-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z" /><path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2H4zm0 2h10v10H4V5z" /></svg>
+                            </div>
+                        </div>
+                        <div id="rca-summary-text" class="text-lg leading-relaxed text-slate-200">${generateRCASummary(data, period)}</div>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="kpi-card">
+                            <div class="kpi-title">Total Failures</div>
+                            <div class="kpi-value clickable-value" data-filter-type="all" data-filter-value="all">${data.totalFailures.toLocaleString()}</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-title">Top Breach Reason</div>
+                            <div class="flex items-baseline">
+                                <div class="kpi-value clickable-value" data-filter-type="breach_bucket" data-filter-value="${topBreach?.name || ''}">${topBreach?.name || 'N/A'}</div>
+                                <div class="kpi-percent">(${topBreachPercent})</div>
+                            </div>
+                        </div>
+                         ${data.cartingAnalysis.failures > 0 ? `<div class="kpi-card"><div class="kpi-title">Carting Lane Failures</div><div class="kpi-value clickable-value" data-filter-type="carting" data-filter-value="all">${data.cartingAnalysis.failures.toLocaleString()}</div></div>` : ''}
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="glass-panel p-6 md:col-span-1"><h2 class="section-title">Failure by Breach Bucket</h2><canvas id="breachChart"></canvas></div>
+                    <div class="glass-panel p-6 md:col-span-2"><h2 class="section-title">Top 5 Impacted NTCs</h2><canvas id="ntcChart"></canvas></div>
+                    <div class="glass-panel p-6 lg:col-span-2"><h2 class="section-title">Top 5 Failing Incoming Trips</h2>${createTripsTable(data.topTripsIn, data.totalFailures)}</div>
+                    <div class="glass-panel p-6 lg:col-span-1"><h2 class="section-title">Top Failing Carting NTCs</h2>${createCartingNTCTable(data.cartingAnalysis)}</div>
+                </div>`;
+            
+            createBreachChart(data.breachBuckets);
+            createNTCChart(data.topNTC, data.totalFailures);
+        };
+
+        const createTripsTable = (data, totalFailures) => {
+            if (!data || data.length === 0) return '<p class="text-sm text-slate-500">No data.</p>';
+            return `<table class="data-table"><thead><tr><th>Trip ID</th><th>Failures</th><th>Breach Profile</th></tr></thead><tbody>
+                ${data.map(row => {
+                    const isAdhoc = row.raw.some(r => r.route_type === 'ADHOC');
+                    const tripUrl = `https://midmile.delhivery.com/#/search/trip-detail/${row.name}`;
+                    const nameCell = `<div class="adhoc-stamp-wrapper">
+                        <a href="${tripUrl}" target="_blank" class="text-blue-400 hover:underline">${row.name}</a>
+                        ${isAdhoc ? '<div class="adhoc-stamp">ADHOC</div>' : ''}
+                    </div>`;
+                    const tripFailPercent = ((row.count / totalFailures) * 100).toFixed(0);
+                    const breachProfile = getTopN(row.raw, 'breach_bucket')
+                        .map(b => {
+                            let abbr = '';
+                            if (b.name.startsWith('Yard')) abbr = 'Yd';
+                            else if (b.name.startsWith('Primary')) abbr = 'Pr';
+                            else if (b.name.startsWith('Processing')) abbr = 'Pc';
+                            return `${abbr}: ${((b.count/row.count)*100).toFixed(0)}%`;
+                        })
+                        .join(', ');
+                    return `<tr><td>${nameCell}</td><td class="clickable-value" data-filter-type="trip_id_in" data-filter-value="${row.name}">${row.count.toLocaleString()} (${tripFailPercent}%)</td><td>${breachProfile}</td></tr>`
+                }).join('')}
+            </tbody></table>`;
+        };
+
+        const createCartingNTCTable = (cartingData) => {
+            if (!cartingData || cartingData.failures === 0) return '<p class="text-sm text-slate-500">No carting failures.</p>';
+            return `<table class="data-table"><thead><tr><th>Carting NTC</th><th>Failures</th></tr></thead><tbody>
+                ${cartingData.topNTCs.map(row => {
+                    const failPercent = ((row.count / cartingData.failures) * 100).toFixed(0);
+                    return `<tr><td>${row.name}</td><td class="clickable-value" data-filter-type="ntc_hq_name" data-filter-value="${row.name}">${row.count.toLocaleString()} (${failPercent}%)</td></tr>`
+                }).join('')}
+            </tbody></table>`;
+        }
+
+        const destroyCharts = () => {
+            Object.values(charts).forEach(chart => chart.destroy());
+            charts = {};
+        };
+
+        const createBreachChart = (data) => {
+            const ctx = document.getElementById('breachChart')?.getContext('2d');
+            if (!ctx) return;
+            if (charts.breach) charts.breach.destroy();
+            charts.breach = new Chart(ctx, {
+                type: 'doughnut', data: { labels: data.map(d => d.name), datasets: [{ data: data.map(d => d.count), backgroundColor: ['#f43f5e', '#f59e0b', '#3b82f6', '#10b981'], borderColor: '#0f172a', borderWidth: 4 }] },
+                options: { responsive: true, onClick: (e, elements) => { if(elements[0]) { const i = elements[0].index; renderWbnDisplayBoard({ breach_bucket: data[i].name }); } }, plugins: { legend: { position: 'bottom', labels: { color: '#e5e7eb', padding: 20 } }, datalabels: { formatter: (value, ctx) => { let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0); let percentage = (value * 100 / sum).toFixed(0) + "%"; return percentage; }, color: '#fff', } } }
+            });
+        };
+        
+        const createNTCChart = (data, totalFailures) => {
+            const ctx = document.getElementById('ntcChart')?.getContext('2d');
+            if (!ctx) return;
+            if (charts.ntc) charts.ntc.destroy();
+            charts.ntc = new Chart(ctx, {
+                type: 'bar', data: { labels: data.map(d => d.name), datasets: [{ label: 'Failures', data: data.map(d => d.count), backgroundColor: 'rgba(45, 212, 191, 0.6)', borderColor: '#2dd4bf', borderWidth: 1 }] },
+                options: { indexAxis: 'y', responsive: true, onClick: (e, elements) => { if(elements[0]) { const i = elements[0].index; renderWbnDisplayBoard({ ntc_hq_name: data[i].name }); } }, scales: { x: { ticks: { color: '#e5e7eb' }, grid: { color: 'rgba(255,255,255,0.1)' } }, y: { ticks: { color: '#e5e7eb' }, grid: { display: false } } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', color: '#e5e7eb', formatter: (value, ctx) => { let percentage = (value * 100 / totalFailures).toFixed(0) + "%"; return `${value.toLocaleString()} (${percentage})`; } } } }
+            });
+        };
+
+        const renderWbnDisplayBoard = (filter) => {
+            const currentData = state.analysis[state.activeTab].rawData;
+            let filteredWbns = currentData;
+            let title = 'WBN Details';
+
+            if (filter.breach_bucket) {
+                filteredWbns = currentData.filter(r => r.breach_bucket === filter.breach_bucket);
+                title = `WBN Details for: ${filter.breach_bucket}`;
+            } else if (filter.ntc_hq_name) {
+                filteredWbns = currentData.filter(r => r.ntc_hq_name === filter.ntc_hq_name);
+                title = `WBN Details for NTC: ${filter.ntc_hq_name}`;
+            } else if (filter.trip_id_in) {
+                 filteredWbns = currentData.filter(r => r.trip_id_in === filter.trip_id_in);
+                title = `WBN Details for Trip: ${filter.trip_id_in}`;
+            } else if (filter.carting) {
+                 filteredWbns = currentData.filter(r => r.ntc_hq_name && (r.ntc_hq_name.endsWith('_D (Karnataka)') || r.ntc_hq_name.endsWith('_DPP (Karnataka)')));
+                title = `WBN Details for all Carting Lanes`;
+            }
+
+            wbnDetailBoard.innerHTML = `
+                <div class="glass-panel p-6">
+                    <h2 class="section-title">${title} (${filteredWbns.length} WBNs)</h2>
+                    <div id="wbn-table-container">
+                        <table class="data-table">
+                            <thead><tr><th>WBN</th><th>NTC</th><th>Breach Bucket</th><th>Incoming Trip</th></tr></thead>
+                            <tbody>
+                                ${filteredWbns.map(wbn => `<tr><td>${wbn.wbn}</td><td>${wbn.ntc_hq_name}</td><td>${wbn.breach_bucket}</td><td>${wbn.trip_id_in}</td></tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
+            wbnDetailBoard.classList.add('open');
+            window.location.hash = "wbn-detail-board";
+        };
+        
+        const showModal = (title, body) => {
+            document.getElementById('modal-header').querySelector('h2').textContent = title;
+            document.getElementById('modal-body').innerHTML = body;
+            modalOverlay.style.display = 'block';
+            modalContent.style.display = 'block';
+        };
+
+        const hideModal = () => {
+            modalOverlay.style.display = 'none';
+            modalContent.style.display = 'none';
+        };
+        
+        const generateDetailedRCA = () => {
+            const data = state.analysis[state.activeTab];
+            let rca = `<p>${generateRCASummary(data, `the period of ${state.activeTab}`)}</p>`;
+            
+            const topBreach = data.breachBuckets[0];
+            if (topBreach) {
+                rca += `<h3 class="font-bold text-lg mt-4 mb-2 text-rose-400">Deep Dive: ${topBreach.name}</h3>`;
+                const topNTCinBreach = getTopN(topBreach.raw, 'ntc_hq_name')[0];
+                const topTripInBreach = getTopN(topBreach.raw, 'trip_id_in')[0];
+                rca += `<p>Within the <strong>${topBreach.count}</strong> failures due to ${topBreach.name.toLowerCase()}, the most impacted NTC was <strong>${topNTCinBreach.name}</strong> with ${topNTCinBreach.count} failures. The primary contributing incoming trip was <strong>${topTripInBreach.name}</strong>, causing ${topTripInBreach.count} of these specific delays.</p>`;
+            }
+            
+            if (data.cartingAnalysis.failures > 0) {
+                 rca += `<h3 class="font-bold text-lg mt-4 mb-2 text-teal-400">Carting Lane Analysis</h3>`;
+                 const topCartingNTC = data.cartingAnalysis.topNTCs[0];
+                 rca += `<p>Of the <strong>${data.cartingAnalysis.failures}</strong> failures on carting lanes, the most affected NTC was <strong>${topCartingNTC.name}</strong> with ${topCartingNTC.count} failures. The main reason for carting failures overall was <strong>${getTopN(data.cartingAnalysis.topNTCs.flatMap(n => n.raw), 'breach_bucket')[0].name.toLowerCase()}</strong>.</p>`
+            }
+
+            showModal('Deeper Analysis', rca);
+        };
+
+        // --- Event Listeners ---
+        zipUploadInput.addEventListener('change', (e) => handleFileUpload(e.target.files));
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eName => { uploadLabel.addEventListener(eName, (e) => { e.preventDefault(); e.stopPropagation(); }); });
+        uploadLabel.addEventListener('drop', (e) => handleFileUpload(e.dataTransfer.files));
+        processFilesBtn.addEventListener('click', processFiles);
+        returnToUploadBtn.addEventListener('click', () => {
+             state.files = []; state.allData = []; state.analysis = {}; state.activeTab = 'consolidated';
+             processFilesBtn.disabled = true; renderFileList(); showScreen('upload');
+        });
+        tabsContainer.addEventListener('click', (e) => {
+            if (e.target.matches('.tab-btn')) {
+                const tabId = e.target.dataset.tab;
+                state.activeTab = tabId;
+                wbnDetailBoard.classList.remove('open');
+                renderTabs();
+                renderTabContent(tabId);
+            }
+        });
+        dashboardContent.addEventListener('click', (e) => {
+            if (e.target.matches('.clickable-value')) {
+                const filterType = e.target.dataset.filterType;
+                const filterValue = e.target.dataset.filterValue;
+                renderWbnDisplayBoard({ [filterType]: filterValue });
+            }
+            if (e.target.matches('#copy-summary-btn') || e.target.closest('#copy-summary-btn')) {
+                const summaryText = document.getElementById('rca-summary-text').innerText;
+                navigator.clipboard.writeText(summaryText).then(() => {
+                    alert('RCA Summary copied to clipboard!');
+                });
+            }
+            if (e.target.matches('#generate-detailed-rca-btn')) {
+                generateDetailedRCA();
+            }
+        });
+        modalCloseBtn.addEventListener('click', hideModal);
+        modalOverlay.addEventListener('click', hideModal);
+
+        showScreen('upload');
+    });
+    </script>
+</body>
+</html>
