@@ -172,42 +172,85 @@
             border-color: var(--accent-color);
             box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.3);
         }
+        
+        .urgent-alert-banner {
+            background: linear-gradient(90deg, var(--amber-color), var(--red-color));
+            animation: pulse-glow-banner 2s infinite;
+        }
+        .urgent-alert-banner .clickable-cluster {
+            cursor: pointer;
+            text-decoration: underline;
+            font-weight: bold;
+        }
 
-        /* Styles for the new nested table in the detail modal */
-        .cluster-breakdown-wrapper {
-            max-height: 200px;
-            overflow-y: auto;
+        @keyframes pulse-glow-banner {
+            0%, 100% { box-shadow: 0 0 8px 0 rgba(245, 158, 11, 0.7); opacity: 1; }
+            50% { box-shadow: 0 0 24px 6px rgba(244, 63, 94, 0.4); opacity: 0.9; }
         }
-        .cluster-breakdown-table {
-            width: 100%;
-            font-size: 0.8rem;
+
+        .closing-window-alert {
+            background: rgba(13, 148, 136, 0.2);
+            border: 1px solid var(--accent-dark);
+            color: var(--accent-hover);
+            animation: pulse-teal-glow 3s infinite;
         }
-        .cluster-breakdown-table td, .cluster-breakdown-table th {
-            border: none;
+
+        @keyframes pulse-teal-glow {
+            0%, 100% { box-shadow: 0 0 5px 0px rgba(45, 212, 191, 0.3); }
+            50% { box-shadow: 0 0 12px 2px rgba(45, 212, 191, 0.5); }
+        }
+        
+        /* New Accordion Styles */
+        .bag-accordion-item {
             border-bottom: 1px solid var(--panel-border);
+            transition: background-color 0.3s ease;
         }
-        .cluster-breakdown-table tbody tr:last-child td {
+        .bag-accordion-item:last-child {
             border-bottom: none;
         }
-        .cluster-breakdown-table tfoot {
-            position: sticky;
-            bottom: 0;
-            background-color: rgba(30, 41, 59, 0.8); /* slate-800 with transparency */
-            backdrop-filter: blur(4px);
+         .bag-accordion-item:hover {
+            background-color: rgba(255, 255, 255, 0.03);
         }
-        .data-table thead.sticky-header {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            background-color: rgba(15, 23, 42, 0.8); /* bg-color with transparency */
-            backdrop-filter: blur(8px);
+        .bag-accordion-header {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 24px;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            align-items: center;
         }
-        .bag-row > td {
-            vertical-align: top;
-            padding-top: 0.5rem;
-            padding-bottom: 0.5rem;
+        .bag-accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out, padding 0.4s ease-out;
+            padding: 0 1.5rem;
         }
-
+        .bag-accordion-content.open {
+            max-height: 500px; /* Adjust as needed */
+            padding: 0.5rem 1.5rem 1rem 1.5rem;
+        }
+        .accordion-arrow {
+            transition: transform 0.3s ease;
+        }
+        .accordion-arrow.open {
+            transform: rotate(180deg);
+        }
+        .cluster-details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 0.5rem;
+        }
+        .cluster-detail-item {
+            display: flex;
+            justify-content: space-between;
+            background-color: rgba(15, 23, 42, 0.5); /* bg-color with transparency */
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+        .etd-input.invalid {
+            border-color: var(--red-color);
+            box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.3);
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -215,7 +258,7 @@
     <!-- Screen: Upload -->
     <div id="upload-screen" class="h-screen w-screen flex flex-col items-center justify-center p-4">
         <div class="text-center mb-8 fade-in">
-            <h1 class="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-400">MIX-SIGHT v.1.2</h1>
+            <h1 class="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-400">MIX-SIGHT</h1>
             <p class="text-slate-300 mt-3 text-lg">Analyze Insights. Execute Scans for Mix Bags</p>
         </div>
         
@@ -242,7 +285,7 @@
     <div id="dashboard-screen" class="hidden p-4 md:p-8">
         <header id="dashboard-header" class="flex flex-col md:flex-row justify-between items-center mb-6">
             <div>
-                <h1 class="text-3xl font-bold text-white">Mix-Sight Dashboard v.1.2</h1>
+                <h1 class="text-3xl font-bold text-white">Analytics Dashboard</h1>
                 <div id="dashboard-timestamp-container" class="mt-1"></div>
             </div>
             <div class="flex items-center gap-4 mt-4 md:mt-0">
@@ -250,6 +293,7 @@
                      <div class="text-2xl font-bold tracking-wider" id="live-clock">00:00:00</div>
                      <div class="text-xs text-slate-400">Current Time (IST)</div>
                  </div>
+                 <button id="view-etd-btn" class="alerts-btn">📅 View/Edit ETDs</button>
                  <button id="show-alerts-btn" class="alerts-btn">
                     <span>⚡️ No Active Alerts</span>
                  </button>
@@ -257,6 +301,10 @@
                  <button id="start-scan-session-btn" class="main-btn">Start Scan Session</button>
             </div>
         </header>
+
+        <div id="urgent-alert-banner" class="hidden mb-6"></div>
+        <div id="closing-window-ticker" class="hidden mb-6"></div>
+
 
         <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Left Column -->
@@ -383,11 +431,30 @@
             </div>
 
             <div id="detail-modal-list" class="flex-grow overflow-y-auto pr-2">
-                <!-- Data table will be injected here -->
+                <!-- Data list will be injected here -->
             </div>
             <div id="detail-modal-buttons" class="mt-4 flex-shrink-0 flex items-center justify-between">
                  <div id="detail-modal-summary" class="text-sm text-slate-400"></div>
-                 <button id="copy-data-btn" class="text-sm bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-500">Copy Visible Data</button>
+                 <div id="detail-modal-actions" class="flex items-center gap-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ETD Editor Modal -->
+    <div id="etd-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay">
+        <div class="glass-panel w-full max-w-4xl h-[90vh] flex flex-col p-6 rounded-lg slide-up">
+            <div class="flex justify-between items-center mb-2 flex-shrink-0">
+                <h2 class="text-xl font-bold">ETD Schedule Editor</h2>
+                <button id="close-etd-modal-btn" class="text-2xl text-slate-400 hover:text-white">&times;</button>
+            </div>
+            <p id="etd-last-updated" class="text-xs text-slate-400 mb-4">Disclaimer: Last updated September 3, 2025. Times are in 24-hour format (HH:MM).</p>
+            
+            <div id="etd-list-container" class="flex-grow overflow-y-auto pr-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+                <!-- ETD edit fields will be injected here -->
+            </div>
+
+            <div class="mt-4 flex-shrink-0 flex items-center justify-end">
+                 <button id="save-etd-btn" class="main-btn">Save Changes</button>
             </div>
         </div>
     </div>
@@ -404,9 +471,56 @@
             fileLastModified: null,
             currentDetailView: { type: null, data: [], originalData: [], context: null },
             alertInterval: null,
-            tickerInterval: null
+            tickerInterval: null,
+            closingWindowInterval: null,
+            closingWindowTimerInterval: null,
+            clusterCutoffs: {
+                "HBX-6-Pune_Sudhwadi": ["00:30"],
+                "HBX-2-Coimbatore_Pudhupalayam_GW": ["00:00"],
+                "HBX-B-Ilkal_Ward4_D": ["03:00"],
+                "KUS-B-Ilkal_Kushtagi_DPP": ["03:00"],
+                "HBX-I-Dandeli_MarutiNgr_DPP": ["03:30"],
+                "HBX-I-Haliyal_DPP": ["03:30"],
+                "HBX-I-Yellapur": ["03:30"],
+                "HBX-A-Badami_SaibabaNagar_DPP": ["04:00"],
+                "HBX-C-Sirsi_Kasturbanagar_D": ["04:00"],
+                "HBX-H-Navalgund_Nargund_DPP": ["04:00"],
+                "HBX-H-Rona": ["04:00"],
+                "HUB-D-Gadag_Laxmeshwar_D": ["04:00"],
+                "HBX-D-Gadag_VijayNagara_D": ["04:00"],
+                "Hubli-1-Haveri_Shiggaon_D": ["04:00"],
+                "Hubli-C-Sirsi_Banavasi2_DPP": ["04:00"],
+                "Yel-H-Yelburga_SurabhiColony_D": ["04:00"],
+                "Hubli-1-Hubli_Mix_bag": ["04:15"],
+                "HBX-E-Hangal_PalaRd_D": ["04:15"],
+                "HBX-E-Kalaghatgi_Machapur_D": ["04:15"],
+                "HBX-E-Mundgod_BankapuraRd_DPP": ["04:15"],
+                "HBX-G-Alnavar": ["04:15"],
+                "HBX-G-Alnavar_Gharli_DPP": ["04:15"],
+                "HBX-G-Dharwad_Mrityunjaya_D": ["04:15"],
+                "HBX-D-Navalgund_BasveshwarNgr_DPP": ["04:30"],
+                "Hubli_Jnntnagar_H-F-Saundatti_Bypassroad_D": ["04:30"],
+                "HBX-A-Kalaghatgi_Gabbur_D": ["05:00"],
+                "HBX-3-Kolhapur": ["05:30", "17:30"],
+                "HBX-6-Pune_Chimbali_H": ["05:30"],
+                "Hubli-A-ShanthiColony": ["05:30"],
+                "HBX-1-Anantapur": ["11:30"],
+                "HBX-4-Bhiwandi": ["07:00", "13:00", "14:00", "19:30"],
+                "HBX-5-Hassan": ["10:30"],
+                "HBX-5-Hassan_mix_bag": ["10:30"],
+                "HBX-7-Mangalore": ["10:30"],
+                "HBX-A-Hubli_NehruNagar_D": ["10:30"],
+                "HBX-1-Bellary": ["11:30"],
+                "HBX-4-Surat": ["16:30"],
+                "HBX-3-Belgaum": ["17:30"],
+                "HBX-8-Goa": ["17:30"],
+                "HBX-6-Gurgaon": ["19:00"],
+                "HBX-5-Shimoga": ["19:00"],
+                "HBX-9-Davangere": ["19:30"],
+                "HBX-9-Davangere_mix_bag": ["19:30"]
+            }
         };
-        const BAG_URL_PREFIX = "https://hq.delhivery.com/bag/";
+        const BAG_URL_PREFIX = "https://hq.delhivery.com/bag/list/1?bs=";
         const WBN_URL_PREFIX = "https://hq.delhivery.com/p/pntrzz/";
 
         const screens = { upload: document.getElementById('upload-screen'), dashboard: document.getElementById('dashboard-screen'), scan: document.getElementById('scan-screen') };
@@ -427,6 +541,8 @@
         const viewAllBagsBtn = document.getElementById('view-all-bags');
         const dashboardTimestampContainer = document.getElementById('dashboard-timestamp-container');
         const liveClockEl = document.getElementById('live-clock');
+        const urgentAlertBanner = document.getElementById('urgent-alert-banner');
+        const closingWindowTicker = document.getElementById('closing-window-ticker');
         
         const showAlertsBtn = document.getElementById('show-alerts-btn');
         const alertsModal = document.getElementById('alerts-modal');
@@ -440,8 +556,17 @@
         const detailModalList = document.getElementById('detail-modal-list');
         const detailModalButtons = document.getElementById('detail-modal-buttons');
         const detailModalSummary = document.getElementById('detail-modal-summary');
+        const detailModalActions = document.getElementById('detail-modal-actions');
         const closeDetailModalBtn = document.getElementById('close-detail-modal-btn');
-        const copyDataBtn = document.getElementById('copy-data-btn');
+
+        // ETD Modal Elements
+        const etdModal = document.getElementById('etd-modal');
+        const viewEtdBtn = document.getElementById('view-etd-btn');
+        const closeEtdModalBtn = document.getElementById('close-etd-modal-btn');
+        const saveEtdBtn = document.getElementById('save-etd-btn');
+        const etdListContainer = document.getElementById('etd-list-container');
+        const etdLastUpdated = document.getElementById('etd-last-updated');
+
 
         const addRuleBtn = document.getElementById('add-rule-btn');
         const applyMagicFilterBtn = document.getElementById('apply-magic-filter-btn');
@@ -674,31 +799,41 @@
         }
 
         function renderDetailModalControlsForBags() {
-            const { originalData } = state.currentDetailView;
+            const { originalData, context } = state.currentDetailView;
             let minWbn = Infinity, maxWbn = 0;
             let minAge = Infinity, maxAge = 0;
-            const allClusters = new Set();
+            
             originalData.forEach(b => {
                 if (b.wbn_count < minWbn) minWbn = b.wbn_count;
                 if (b.wbn_count > maxWbn) maxWbn = b.wbn_count;
                 if (b.age_hours < minAge) minAge = b.age_hours;
                 if (b.age_hours > maxAge) maxAge = b.age_hours;
-                Object.keys(b.clusters).forEach(c => allClusters.add(c));
             });
-            const sortedClusters = [...allClusters].sort();
+
+            let clusterFilterHTML = '';
+            // Only show cluster filter if viewing a mix of clusters
+            if (['all', 'filter'].includes(context.type)) {
+                 const allClusters = new Set();
+                 originalData.forEach(b => {
+                    Object.keys(b.clusters).forEach(c => allClusters.add(c));
+                });
+                const sortedClusters = [...allClusters].sort();
+                clusterFilterHTML = `
+                    <div class="flex flex-col">
+                        <label class="text-xs text-slate-400 mb-1">Filter by Cluster</label>
+                        <select id="filter-cluster" class="filter-control-input w-48">
+                            <option value="">All Clusters</option>
+                            ${sortedClusters.map(c => `<option value="${c}">${c}</option>`).join('')}
+                        </select>
+                    </div>`;
+            }
 
             detailModalControls.innerHTML = `
                 <div class="flex flex-col">
                     <label class="text-xs text-slate-400 mb-1">Search Bag ID</label>
                     <input type="text" id="filter-bag-id" placeholder="Enter Bag ID..." class="filter-control-input w-40">
                 </div>
-                <div class="flex flex-col">
-                    <label class="text-xs text-slate-400 mb-1">Filter by Cluster</label>
-                    <select id="filter-cluster" class="filter-control-input w-48">
-                        <option value="">All Clusters</option>
-                        ${sortedClusters.map(c => `<option value="${c}">${c}</option>`).join('')}
-                    </select>
-                </div>
+                ${clusterFilterHTML}
                 <div class="flex flex-col">
                     <label class="text-xs text-slate-400 mb-1">WBNs: <span id="wbn-range-label">${minWbn}-${maxWbn}</span></label>
                     <input type="range" id="filter-wbn-range" min="${minWbn}" max="${maxWbn}" value="${minWbn}" class="w-40">
@@ -722,7 +857,9 @@
             `;
             // Add event listeners
             document.getElementById('filter-bag-id').addEventListener('input', applyLiveFiltersAndSort);
-            document.getElementById('filter-cluster').addEventListener('change', applyLiveFiltersAndSort);
+            if (document.getElementById('filter-cluster')) {
+                document.getElementById('filter-cluster').addEventListener('change', applyLiveFiltersAndSort);
+            }
             const wbnRange = document.getElementById('filter-wbn-range');
             wbnRange.addEventListener('input', () => {
                 document.getElementById('wbn-range-label').textContent = `${wbnRange.value}-${maxWbn}`;
@@ -769,10 +906,12 @@
             // Apply Filters
             if (type === 'bags') {
                 const bagIdFilter = document.getElementById('filter-bag-id').value.toLowerCase();
-                const clusterFilter = document.getElementById('filter-cluster').value;
+                const clusterFilterEl = document.getElementById('filter-cluster');
                 const minWbnFilter = parseInt(document.getElementById('filter-wbn-range').value, 10);
                 if (bagIdFilter) filteredData = filteredData.filter(b => b.bag_id.toLowerCase().includes(bagIdFilter));
-                if (clusterFilter) filteredData = filteredData.filter(b => Object.keys(b.clusters).includes(clusterFilter));
+                if (clusterFilterEl && clusterFilterEl.value) {
+                    filteredData = filteredData.filter(b => Object.keys(b.clusters).includes(clusterFilterEl.value));
+                }
                 if (minWbnFilter) filteredData = filteredData.filter(b => b.wbn_count >= minWbnFilter);
             } else if (type === 'wbns') {
                 const wbnFilter = document.getElementById('filter-wbn').value.toLowerCase();
@@ -792,72 +931,116 @@
 
             state.currentDetailView.data = filteredData; // Update state with filtered data for copying
             if (type === 'bags') {
-                renderBagTableContent(filteredData);
+                renderBagListContent(filteredData);
             } else if (type === 'wbns') {
                 renderWbnTableContent(filteredData);
             }
+            renderDetailModalActions();
             
             const summaryText = type === 'bags' ? 'Bags' : 'Shipments';
             detailModalSummary.textContent = `Showing ${filteredData.length} of ${originalData.length} ${summaryText}`;
         }
+
+        function renderDetailModalActions() {
+            const { type, data } = state.currentDetailView;
+            detailModalActions.innerHTML = ''; // Clear previous buttons
+
+            if (data.length === 0) return; // No data, no buttons
+
+            if (type === 'bags') {
+                // Button 1: Copy Bag IDs
+                const copyBtn = document.createElement('button');
+                copyBtn.textContent = 'Copy Bag ID(s)';
+                copyBtn.className = 'text-sm bg-slate-600 text-white py-2 px-4 rounded-md hover:bg-slate-500 transition-colors';
+                copyBtn.addEventListener('click', () => {
+                    const bagIds = data.map(bag => bag.bag_id).join('\n');
+                    navigator.clipboard.writeText(bagIds).then(() => {
+                        const originalText = copyBtn.textContent;
+                        copyBtn.textContent = 'Copied!';
+                        setTimeout(() => { copyBtn.textContent = originalText; }, 2000);
+                    });
+                });
+                detailModalActions.appendChild(copyBtn);
+
+                // Button 2: Bulk Search
+                const searchBtn = document.createElement('button');
+                searchBtn.textContent = 'Bulk Search in HQ';
+                searchBtn.className = 'text-sm bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-500 transition-colors';
+                searchBtn.addEventListener('click', () => {
+                    const bagIds = data.map(bag => bag.bag_id).join('+');
+                    const url = `${BAG_URL_PREFIX}${bagIds}`;
+                    window.open(url, '_blank');
+                });
+                detailModalActions.appendChild(searchBtn);
+
+            } else if (type === 'wbns') {
+                // Button for WBNs
+                const copyWbnBtn = document.createElement('button');
+                copyWbnBtn.textContent = 'Copy WBN(s)';
+                copyWbnBtn.className = 'text-sm bg-slate-600 text-white py-2 px-4 rounded-md hover:bg-slate-500 transition-colors';
+                copyWbnBtn.addEventListener('click', () => {
+                    const wbns = data.map(shipment => shipment.wbn).join('\n');
+                    navigator.clipboard.writeText(wbns).then(() => {
+                        const originalText = copyWbnBtn.textContent;
+                        copyWbnBtn.textContent = 'Copied!';
+                        setTimeout(() => { copyWbnBtn.textContent = originalText; }, 2000);
+                    });
+                });
+                detailModalActions.appendChild(copyWbnBtn);
+            }
+        }
         
-        function renderBagTableContent(bags) {
-            const headers = { bag_id: 'Bag ID', age_str: 'Age', cluster_distribution: 'Shipment Distribution' };
-            const headerHtml = Object.values(headers).map(value => `<th>${value}</th>`).join('');
+        function renderBagListContent(bags) {
+             const headerHtml = `
+                <div class="bag-accordion-header text-slate-400 text-sm font-semibold sticky top-0 bg-slate-900/50 backdrop-blur-sm z-10">
+                    <div>Bag ID</div>
+                    <div>Age</div>
+                    <div>Total Shipments</div>
+                    <div></div>
+                </div>
+             `;
+
+             const accordionItemsHTML = bags.map(bag => {
+                const sortedClusters = Object.entries(bag.clusters).sort(([, countA], [, countB]) => countB - countA);
+                const clusterDetailsHTML = `
+                    <div class="cluster-details-grid">
+                        ${sortedClusters.map(([id, count]) => `
+                            <div class="cluster-detail-item">
+                                <span class="text-slate-300 truncate">${id}</span>
+                                <span class="font-bold text-teal-300">${count}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                return `
+                    <div class="bag-accordion-item" data-bag-id="${bag.bag_id}">
+                        <div class="bag-accordion-header">
+                            <div>
+                                <a href="#" onclick="event.preventDefault(); window.open('${BAG_URL_PREFIX}${bag.bag_id}', '_blank');" class="text-blue-400 hover:underline font-semibold">${bag.bag_id}</a>
+                                <div class="ml-2 inline-flex gap-1">
+                                    ${bag.has_bfsi ? '<span class="bfsi-indicator" title="BFSI Shipment Present">$</span>' : ''}
+                                    ${bag.has_rt ? '<span class="rt-indicator" title="RT Shipment Present">RT</span>' : ''}
+                                </div>
+                            </div>
+                            <div class="font-mono text-slate-300">${bag.age_str}</div>
+                            <div class="font-bold text-lg text-white">${bag.wbn_count}</div>
+                            <div class="accordion-arrow text-slate-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </div>
+                        </div>
+                        <div class="bag-accordion-content">
+                            ${clusterDetailsHTML}
+                        </div>
+                    </div>
+                `;
+             }).join('');
 
             detailModalList.innerHTML = `
-                <table class="data-table" id="detailViewTable">
-                    <thead class="sticky-header">
-                        <tr>${headerHtml}</tr>
-                    </thead>
-                    <tbody>
-                        ${bags.map(bag => {
-                            // Sort clusters by shipment count, descending
-                            const sortedClusters = Object.entries(bag.clusters).sort(([, countA], [, countB]) => countB - countA);
-
-                            const clusterTableRows = sortedClusters.map(([clusterId, count]) => `
-                                <tr>
-                                    <td class="py-1 px-2 text-slate-300">${clusterId}</td>
-                                    <td class="py-1 px-2 text-right font-semibold text-teal-300">${count}</td>
-                                </tr>
-                            `).join('');
-
-                            const detailCellContent = `
-                                <td class="p-0 align-top">
-                                    <div class="cluster-breakdown-wrapper">
-                                        <table class="cluster-breakdown-table">
-                                            <tbody>
-                                                ${clusterTableRows}
-                                            </tbody>
-                                            <tfoot>
-                                                <tr>
-                                                    <th class="py-1 px-2 text-left">Total Shipments</th>
-                                                    <th class="py-1 px-2 text-right text-white">${bag.wbn_count}</th>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
-                                    </div>
-                                </td>
-                            `;
-                            
-                            return `
-                            <tr class="bag-row">
-                                <td>
-                                    <div class="flex items-center">
-                                        <a href="${BAG_URL_PREFIX}${bag.bag_id}/" target="_blank" class="text-blue-400 hover:underline font-semibold">${bag.bag_id}</a>
-                                        <div class="ml-2 flex gap-1">
-                                            ${bag.has_bfsi ? '<span class="bfsi-indicator" title="BFSI Shipment Present">$</span>' : ''}
-                                            ${bag.has_rt ? '<span class="rt-indicator" title="RT Shipment Present">RT</span>' : ''}
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="font-mono">${bag.age_str}</td>
-                                ${detailCellContent}
-                            </tr>`
-                        }).join('')}
-                        ${bags.length === 0 ? '<tr><td colspan="3" class="text-center text-slate-400 py-8">No data matches your filters.</td></tr>' : ''}
-                    </tbody>
-                </table>`;
+                ${headerHtml}
+                <div id="bag-accordion-container">
+                    ${bags.length > 0 ? accordionItemsHTML : '<div class="text-center text-slate-400 py-12">No data matches your filters.</div>'}
+                </div>
+            `;
         }
 
         function renderWbnTableContent(shipments) {
@@ -881,6 +1064,16 @@
                     </tbody>
                 </table>`;
         }
+        
+        detailModalList.addEventListener('click', e => {
+            const header = e.target.closest('.bag-accordion-header');
+            if (header) {
+                const content = header.nextElementSibling;
+                const arrow = header.querySelector('.accordion-arrow');
+                content.classList.toggle('open');
+                arrow.classList.toggle('open');
+            }
+        });
         
         function initializeMagicFilter() {
             const fields = { 'Bag ID': 'bag_id', 'Cluster Name': 'clusters', 'WBN Count': 'wbn_count', 'Age (Hours)': 'age_hours' };
@@ -1094,7 +1287,7 @@
                     </h4>
                     <div class="pt-2 space-y-2">
                         ${data.pending.map(bag => `<div id="pending-item-${bag.id}-${clusterName}" class="p-2 bg-slate-800 rounded-md flex justify-between items-center text-sm">
-                                <a href="${BAG_URL_PREFIX}${bag.id}/" target="_blank" class="font-semibold text-blue-400 hover:underline">${bag.id}</a>
+                                <a href="${BAG_URL_PREFIX}${bag.id}" target="_blank" class="font-semibold text-blue-400 hover:underline">${bag.id}</a>
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs bg-slate-600 rounded-full px-2 py-1">${bag.shipmentCount} shipments</span>
                                     <button class="mark-complete-btn p-1 rounded-full hover:bg-green-500" data-bag-id="${bag.id}" title="Mark as complete">
@@ -1208,39 +1401,14 @@
         returnToUploadBtn.addEventListener('click', () => {
              clearInterval(state.alertInterval);
              clearInterval(state.tickerInterval);
+             clearInterval(state.closingWindowInterval);
+             clearInterval(state.closingWindowTimerInterval);
              showScreen('upload');
         });
         startScanBtn.addEventListener('click', initializeScanSession);
         endScanBtn.addEventListener('click', endSession);
         finishSessionBtn.addEventListener('click', endSession);
         viewAllBagsBtn.addEventListener('click', () => openDetailModal({ type: 'bags', data: state.fullAnalysisData.bags, context: { type: 'all' }, title: 'All Pending Bags' }));
-
-        copyDataBtn.addEventListener('click', () => {
-            const { type, data } = state.currentDetailView; // Use the currently filtered/sorted data
-            if (!data || data.length === 0) return;
-
-            let options = {};
-            if (type === 'bags') {
-                options = { 'Bag ID': 'bag_id', 'Age': 'age_str', 'WBN Count': 'wbn_count', 'Clusters': (d) => Object.keys(d.clusters).join(', ') };
-            } else if (type === 'wbns') {
-                options = { 'WBN': 'wbn', 'Age (Hours)': (d) => d.age_hours.toFixed(2), 'Cluster': 'cluster_id', 'Parent Bag': 'bag_id' };
-            }
-            
-            const headers = Object.keys(options).join('\t');
-            const rows = data.map(row => {
-                return Object.keys(options).map(key => {
-                    const option = options[key];
-                    return typeof option === 'function' ? option(row) : row[option];
-                }).join('\t');
-            });
-            
-            const textToCopy = [headers, ...rows].join('\n');
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                const originalText = copyDataBtn.textContent;
-                copyDataBtn.textContent = 'Copied!';
-                setTimeout(() => { copyDataBtn.textContent = originalText; }, 2000);
-            });
-        });
         
         shortWbnFinderBtn.addEventListener('click', () => {
             const content = `
@@ -1308,33 +1476,9 @@
 
 
         // --- Alerts & Clock Logic ---
-        const clusterCutoffs = {
-            "HBX-5-Hassan": ["09:30"], "HBX-9-Davangere": ["16:30", "20:30"], "HBX-5-Shimoga": ["18:00"],
-            "HBX-9-Davangere_mix_bag": ["16:30", "20:30"], "HBX-5-Hassan_mix_bag": ["09:30"],
-            "Hubli-A-ShanthiColony": ["04:30", "09:30"], "HBX-G-Dharwad_Mrityunjaya_D": ["03:15"],
-            "HBX-A-Kalaghatgi_Gabbur_D": ["04:00"], "HBX-B-Ilkal_Ward4_D": ["02:00"],
-            "HBX-E-Hangal_PalaRd_D": ["03:15"], "HBX-A-Hubli_NehruNagar_D": ["04:30", "09:30"],
-            "HUB-D-Gadag_Laxmeshwar_D": ["03:00"], "Yel-H-Yelburga_SurabhiColony_D": ["03:00"],
-            "HBX-I-Yellapur": ["02:30"], "HBX-H-Navalgund_Nargund_DPP": ["03:00"],
-            "HBX-D-Gadag_VijayNagara_D": ["03:00"], "HBX-H-Rona": ["03:00"],
-            "HBX-C-Sirsi_Kasturbanagar_D": ["03:00"], "HBX-I-Haliyal_DPP": ["02:30"],
-            "Hubli_Jnntnagar_H-F-Saundatti_Bypassroad_D": ["03:30"], "KUS-B-Ilkal_Kushtagi_DPP": ["02:00"],
-            "HBX-E-Kalaghatgi_Machapur_D": ["03:15"], "HBX-I-Dandeli_MarutiNgr_DPP": ["02:30"],
-            "HBX-1-Bellary": ["10:30"], "HBX-6-Pune_Chimbali_H": ["01:00"],
-            "HBX-E-Mundgod_BankapuraRd_DPP": ["03:15"], "HBX-1-Anantapur": ["10:30"],
-            "HBX-3-Belgaum": ["16:30"], "HBX-D-Navalgund_BasveshwarNgr_DPP": ["03:00"],
-            "HBX-A-Badami_SaibabaNagar_DPP": ["03:00"], "HBX-2-Bangalore_Hoskote_GW": ["14:30"],
-            "HBX-4-Bhiwandi": ["06:00", "11:30", "18:30", "03:00"], "HBX-G-Alnavar": ["03:15"],
-            "HBX-G-Alnavar_Gharli_DPP": ["03:15"], "HBX-6-Gurgaon": ["18:00"],
-            "HBX-3-Kolhapur": ["03:00", "16:30"], "HBX-7-Mangalore": ["09:30"],
-            "Hubli-F-Ramdurg_MahanteshNagar_DPP": ["03:30"], "HBX-4-Surat": ["15:30"],
-            "HBX-2-Coimbatore_Pudhupalayam_GW": ["23:00"], "HBX-8-Goa": ["16:30"],
-            "HBX-6-Pune_Sudhwadi": ["23:30"]
-        };
-
         function getNextCutoff(clusterId) {
             const now = new Date();
-            const cutoffs = clusterCutoffs[clusterId] || [];
+            const cutoffs = state.clusterCutoffs[clusterId] || [];
             let nextCutoff = null;
 
             const todayCutoffs = cutoffs.map(timeStr => {
@@ -1357,6 +1501,34 @@
             }
             return nextCutoff;
         }
+        
+        function getMostRecentCutoff(clusterId) {
+            const now = new Date();
+            const cutoffs = state.clusterCutoffs[clusterId] || [];
+            let mostRecent = null;
+
+            const todayCutoffs = cutoffs.map(timeStr => {
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                const d = new Date(now);
+                d.setHours(hours, minutes, 0, 0);
+                return d;
+            }).sort((a, b) => b - a); // Sort descending
+
+            for (const cutoff of todayCutoffs) {
+                if (cutoff < now) {
+                    mostRecent = cutoff;
+                    break;
+                }
+            }
+            
+            if (!mostRecent && todayCutoffs.length > 0) {
+                const yesterdayCutoff = new Date(todayCutoffs[0]); // Last cutoff of the day
+                yesterdayCutoff.setDate(yesterdayCutoff.getDate() - 1);
+                mostRecent = yesterdayCutoff;
+            }
+            return mostRecent;
+        }
+
 
         function updateCutoffTickers() {
             const now = new Date();
@@ -1388,129 +1560,190 @@
             });
         }
 
+        function cycleClosingWindowAlerts() {
+            const alerts = closingWindowTicker.querySelectorAll('.closing-window-alert');
+            if (alerts.length <= 1) return;
+
+            let currentIndex = -1;
+            alerts.forEach((alert, index) => {
+                if (!alert.classList.contains('hidden')) {
+                    currentIndex = index;
+                }
+            });
+
+            if (currentIndex !== -1) {
+                alerts[currentIndex].classList.add('hidden');
+                const nextIndex = (currentIndex + 1) % alerts.length;
+                alerts[nextIndex].classList.remove('hidden');
+            }
+        }
+        
+        function updateClosingWindowTimers() {
+             const now = new Date();
+             document.querySelectorAll('[data-closing-time]').forEach(timerEl => {
+                const closingTime = new Date(timerEl.dataset.closingTime);
+                const diff = closingTime - now;
+                
+                if (diff < 0) {
+                    timerEl.textContent = 'ENDED';
+                    return;
+                }
+
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                timerEl.textContent = `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+             });
+        }
+
+
         function startAlerts() {
-            if (state.alertInterval) clearInterval(state.alertInterval);
-            generateAlerts();
-            state.alertInterval = setInterval(generateAlerts, 60000); // Run every minute
+            clearInterval(state.alertInterval);
+            clearInterval(state.closingWindowInterval);
+            clearInterval(state.closingWindowTimerInterval);
+            
+            generateAlerts(); // Run once immediately
+            
+            state.alertInterval = setInterval(generateAlerts, 30000); // Check for alerts every 30 seconds
+            state.closingWindowInterval = setInterval(cycleClosingWindowAlerts, 5000); // Cycle tickers every 5 seconds
+            state.closingWindowTimerInterval = setInterval(updateClosingWindowTimers, 1000);
         }
 
         function generateAlerts() {
             if (!state.fullAnalysisData) return;
 
             const now = new Date();
-            const alerts = {};
+            const alerts = {
+                urgent: [],
+                failures: [],
+                outliers: [],
+                closingWindows: []
+            };
+            const BAG_CLOSING_WINDOW_START_MINS = 60;
+            const BAG_CLOSING_WINDOW_END_MINS = 30;
+            const MIN_AGE_FOR_ALERT_HOURS = 2.5;
+            const FAILURE_LOOKBACK_HOURS = 2;
+            const WINDOW_LOOKAHEAD_HOURS = 4;
 
-            // --- Generate Cutoff-based Alerts ---
-            const atRiskShipments = state.fullAnalysisData.shipments.filter(s => s.age_hours >= 2.5);
-            for (const shipment of atRiskShipments) {
-                const cutoffs = clusterCutoffs[shipment.cluster_id] || [];
-                if (cutoffs.length === 0) continue;
-
-                let nextCutoff = null;
-                let mostRecentPastCutoff = null;
-
-                for (const timeStr of cutoffs.sort()) {
-                    const [hours, minutes] = timeStr.split(':').map(Number);
-                    const cutoffToday = new Date(now);
-                    cutoffToday.setHours(hours, minutes, 0, 0);
-
-                    if (cutoffToday > now) {
-                        if (!nextCutoff || cutoffToday < nextCutoff) {
-                            nextCutoff = cutoffToday;
-                        }
-                    } else {
-                         if (!mostRecentPastCutoff || cutoffToday > mostRecentPastCutoff) {
-                            mostRecentPastCutoff = cutoffToday;
-                        }
+            const clustersWithOldBags = new Map();
+            state.fullAnalysisData.shipments.forEach(s => {
+                if (s.age_hours >= MIN_AGE_FOR_ALERT_HOURS) {
+                    if (!clustersWithOldBags.has(s.cluster_id)) {
+                        clustersWithOldBags.set(s.cluster_id, []);
                     }
+                    clustersWithOldBags.get(s.cluster_id).push(s);
+                }
+            });
+            
+            for (const clusterId of Object.keys(state.clusterCutoffs)) {
+                const nextCutoff = getNextCutoff(clusterId);
+                if (!nextCutoff) continue;
+
+                const closingWindowEnd = new Date(nextCutoff.getTime() - BAG_CLOSING_WINDOW_END_MINS * 60 * 1000);
+
+                // --- Generate General Closing Window Alerts ---
+                if (closingWindowEnd > now && (closingWindowEnd - now) / (1000 * 60 * 60) < WINDOW_LOOKAHEAD_HOURS) {
+                    alerts.closingWindows.push({
+                        clusterId,
+                        closingTime: closingWindowEnd,
+                        etd: nextCutoff
+                    });
                 }
                 
-                if (!alerts[shipment.cluster_id]) {
-                    alerts[shipment.cluster_id] = { imminent: [], past: [] };
-                }
+                // --- Generate URGENT alerts only if there are old bags for that cluster ---
+                const shipmentsForCluster = clustersWithOldBags.get(clusterId) || [];
+                if (shipmentsForCluster.length > 0) {
+                    const mostRecentCutoff = getMostRecentCutoff(clusterId);
+                    const diffMins = (nextCutoff - now) / (1000 * 60);
 
-                // Check for imminent failures in the next 2 hours
-                if (nextCutoff && (nextCutoff - now) < 2 * 60 * 60 * 1000) {
-                    alerts[shipment.cluster_id].imminent.push({shipment, cutoff: nextCutoff});
-                }
+                    if (diffMins <= BAG_CLOSING_WINDOW_START_MINS && diffMins > BAG_CLOSING_WINDOW_END_MINS) {
+                        alerts.urgent.push({
+                            clusterId,
+                            nextCutoff,
+                            diffMins,
+                            shipmentCount: shipmentsForCluster.length,
+                            bagCount: new Set(shipmentsForCluster.map(s => s.bag_id)).size
+                        });
+                    }
 
-                // Check for past failures within the last 2 hours
-                if (mostRecentPastCutoff && (now - mostRecentPastCutoff) < 2 * 60 * 60 * 1000 && shipment.bag_incoming_time_dt < mostRecentPastCutoff) {
-                    const ageAtCutoff = (mostRecentPastCutoff - shipment.bag_incoming_time_dt) / (1000 * 60 * 60);
-                    if (ageAtCutoff >= 2.5) {
-                        alerts[shipment.cluster_id].past.push({shipment, cutoff: mostRecentPastCutoff});
+                    if (mostRecentCutoff) {
+                        const closingTime = new Date(mostRecentCutoff.getTime() - BAG_CLOSING_WINDOW_END_MINS * 60 * 1000);
+                        const timeSinceClosing = (now - closingTime) / (1000 * 60 * 60);
+                        if (timeSinceClosing > 0 && timeSinceClosing <= FAILURE_LOOKBACK_HOURS) {
+                            const failedShipments = shipmentsForCluster.filter(s => s.bag_incoming_time_dt < closingTime);
+                            if (failedShipments.length > 0) {
+                                alerts.failures.push({
+                                    clusterId,
+                                    cutoff: mostRecentCutoff,
+                                    shipmentCount: failedShipments.length,
+                                    bagCount: new Set(failedShipments.map(s => s.bag_id)).size
+                                });
+                            }
+                        }
                     }
                 }
             }
-
-            // --- Generate Outlier Bag Alert ---
-            const outlierBags = state.fullAnalysisData.bags.filter(b => b.wbn_count >= 7 && b.age_hours >= 7);
-            if (outlierBags.length > 0) {
-                alerts.outliers = outlierBags;
-            }
-
+            
+            alerts.outliers = state.fullAnalysisData.bags.filter(b => b.wbn_count >= 7 && b.age_hours >= 7);
+            alerts.closingWindows.sort((a,b) => a.closingTime - b.closingTime);
+            
+            state.currentAlerts = alerts;
             renderAlerts(alerts);
         }
 
         function renderAlerts(alerts) {
-            let criticalAlertsCount = 0;
-            let pastFailuresCount = 0;
-            let criticalAlertsHTML = '';
-            let pastFailuresHTML = '';
-            let outlierAlertsHTML = '';
-
-            const now = new Date();
-
-            // --- Generate Cutoff Horizon Data ---
-            const upcomingCutoffs = [];
-            const processedClusters = new Set();
-            
-            const sortedCutoffTimes = Object.entries(clusterCutoffs)
-                .flatMap(([clusterId, times]) => times.map(time => ({ clusterId, time })))
-                .map(item => {
-                    const [hours, minutes] = item.time.split(':').map(Number);
-                    const cutoffDate = new Date(now);
-                    cutoffDate.setHours(hours, minutes, 0, 0);
-                    if (cutoffDate < now) {
-                        cutoffDate.setDate(cutoffDate.getDate() + 1);
-                    }
-                    return { ...item, date: cutoffDate };
-                })
-                .sort((a, b) => a.date - b.date);
-
-            for (const cutoff of sortedCutoffTimes) {
-                if (upcomingCutoffs.length >= 5) break;
-                if (!processedClusters.has(cutoff.clusterId)) {
-                    const pendingShipments = state.fullAnalysisData.shipments.filter(s => s.cluster_id === cutoff.clusterId).length;
-                    upcomingCutoffs.push({ ...cutoff, pendingShipments });
-                    processedClusters.add(cutoff.clusterId);
-                }
+            // --- 1. Render the top Urgent Banner ---
+            if (alerts.urgent.length > 0) {
+                const urgentAlert = alerts.urgent[0]; // Focus on the most imminent one
+                urgentAlertBanner.innerHTML = `
+                    <div class="p-4 text-center text-white font-bold urgent-alert-banner rounded-lg" data-cluster-id="${urgentAlert.clusterId}">
+                        <span class="text-2xl">🚨 WARNING:</span> 
+                        <span class="text-xl">${urgentAlert.bagCount} bag(s) for 
+                        <span class="clickable-cluster">${urgentAlert.clusterId}</span> will fail if not processed within the next 
+                        <strong>${Math.round(urgentAlert.diffMins - 30)} minutes!</strong> (ETD in ${Math.round(urgentAlert.diffMins)} mins)</span>
+                    </div>
+                `;
+                urgentAlertBanner.classList.remove('hidden');
+            } else {
+                urgentAlertBanner.classList.add('hidden');
             }
 
-            const horizonHTML = `
-                <div class="cutoff-horizon-container overflow-hidden relative w-full mb-6 h-28">
-                    <div class="text-xs font-bold text-slate-400 mb-2">UPCOMING CUTOFF HORIZON</div>
-                    <div class="cutoff-horizon-track flex absolute left-0">
-                        ${[...upcomingCutoffs, ...upcomingCutoffs].map(c => `
-                            <div class="cutoff-card glass-panel flex-shrink-0 w-48 mr-4 p-3">
-                                <div class="font-bold text-teal-300 truncate">${c.clusterId}</div>
-                                <div class="text-2xl font-bold text-white">${c.date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                                <div class="text-xs text-slate-300">${c.pendingShipments} pending shipments</div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>`;
+            // --- 2. Render the Closing Window Ticker ---
+             if (alerts.closingWindows.length > 0) {
+                const alertsHTML = alerts.closingWindows.map((alert, index) => {
+                    const diffMins = Math.round((alert.closingTime - new Date()) / (1000 * 60));
+                    if (diffMins < 0) return ''; // Don't show past windows
+                    return `<div class="closing-window-alert p-3 rounded-lg text-center text-lg ${index > 0 ? 'hidden' : ''}">
+                        <span>🔔 ETD of <strong class="font-bold">${alert.clusterId}</strong> is <strong>${alert.etd.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</strong> (Bag closing window ends in <strong class="font-bold text-xl" data-closing-time="${alert.closingTime.toISOString()}">--:--:--</strong>)</span>
+                    </div>`;
+                }).join('');
+                closingWindowTicker.innerHTML = alertsHTML;
+                closingWindowTicker.classList.remove('hidden');
+            } else {
+                closingWindowTicker.classList.add('hidden');
+                closingWindowTicker.innerHTML = '';
+            }
+
+            // --- 3. Populate the Alerts Modal ---
+            const criticalAlertsCount = alerts.failures.length + (alerts.outliers.length > 0 ? 1 : 0);
             
-            // --- Generate Outlier Bag Alert ---
+            const failuresHTML = alerts.failures.map(alert => `
+                <div class="glass-panel p-4 border-l-4 border-red-500 mb-3">
+                    <h3 class="font-bold text-red-400">CUTOFF FAILURE: ${alert.clusterId}</h3>
+                    <p class="text-lg">
+                        <strong class="text-2xl">${alert.bagCount} bags</strong> failed to close before the 30-min window for the ${alert.cutoff.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} ETD.
+                    </p>
+                </div>`
+            ).join('');
+
+            let outlierAlertsHTML = '';
             if (alerts.outliers && alerts.outliers.length > 0) {
-                criticalAlertsCount++;
-                const outlierBags = alerts.outliers;
                 outlierAlertsHTML = `
                     <div class="glass-panel p-4 alert-critical mb-3" data-action="view-outliers" style="cursor: pointer;">
                         <div class="flex justify-between items-center">
                             <div>
                                 <h3 class="font-bold text-amber-400">CRITICAL: Outlier Bags Detected</h3>
-                                <p class="text-lg"><strong class="text-2xl">${outlierBags.length}</strong> high-volume, aged bags require immediate attention.</p>
+                                <p class="text-lg"><strong class="text-2xl">${alerts.outliers.length}</strong> high-volume, aged bags require immediate attention.</p>
                             </div>
                             <div class="text-teal-300 text-right text-sm hover:underline">
                                 <strong>Insight:</strong> These may be missing or misplaced. Click to view.
@@ -1519,56 +1752,10 @@
                     </div>`;
             }
 
-            // --- Generate Cutoff-based Alerts ---
-            for (const clusterId in alerts) {
-                if (alerts[clusterId].imminent && alerts[clusterId].imminent.length > 0) {
-                    criticalAlertsCount++;
-                    const imminentShipments = alerts[clusterId].imminent.map(i => i.shipment);
-                    const cutoffTime = alerts[clusterId].imminent[0].cutoff;
-                    const minutesRemaining = Math.round((cutoffTime - new Date()) / 60000);
-                    
-                    const bagMap = new Map();
-                    imminentShipments.forEach(s => { bagMap.set(s.bag_id, (bagMap.get(s.bag_id) || 0) + 1); });
-                    const sortedBags = [...bagMap.entries()].sort((a, b) => b[1] - a[1]);
-                    
-                    let shipmentsToSave = 0;
-                    let bagsToPrioritizeCount = 0;
-                    const targetToSave = Math.ceil(imminentShipments.length * 0.8);
-                    
-                    for(const [bagId, count] of sortedBags) {
-                        if (shipmentsToSave >= targetToSave) break;
-                        shipmentsToSave += count;
-                        bagsToPrioritizeCount++;
-                    }
-                    const reductionPercent = imminentShipments.length > 0 ? Math.round((shipmentsToSave / imminentShipments.length) * 100) : 0;
-                    
-                    criticalAlertsHTML += `
-                        <div class="glass-panel p-4 alert-critical mb-3" data-action="prioritize-bags" data-cluster-id="${clusterId}" style="cursor: pointer;">
-                            <div class="flex justify-between items-center">
-                                <div>
-                                    <h3 class="font-bold text-amber-400">CRITICAL: ${clusterId}</h3>
-                                    <p class="text-lg"><strong class="text-2xl">${imminentShipments.length}</strong> shipments will fail in <strong class="text-2xl">${minutesRemaining}</strong> mins.</p>
-                                </div>
-                                <div class="text-teal-300 text-right text-sm hover:underline">
-                                    <strong>Insight:</strong> Prioritize ${bagsToPrioritizeCount} bags to reduce failures by ${reductionPercent}%.
-                                </div>
-                            </div>
-                        </div>`;
-                }
-
-                if (alerts[clusterId].past && alerts[clusterId].past.length > 0) {
-                     pastFailuresCount++;
-                     pastFailuresHTML += `
-                        <div class="glass-panel p-3 border-l-4 border-red-500 mb-2">
-                            <h3 class="font-semibold text-red-400">Past Failure: ${clusterId}</h3>
-                            <p><strong>At least ${alerts[clusterId].past.length}</strong> shipments have failed the ${alerts[clusterId].past[0].cutoff.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} cutoff.</p>
-                        </div>`;
-                }
-            }
-            
             // --- Update Alert Button ---
-            if (criticalAlertsCount > 0) {
-                showAlertsBtn.innerHTML = `<span>⚡️ ${criticalAlertsCount} Critical Alert${criticalAlertsCount > 1 ? 's' : ''}</span>`;
+            let totalAlerts = criticalAlertsCount + alerts.urgent.length;
+            if (totalAlerts > 0) {
+                showAlertsBtn.innerHTML = `<span>⚡️ ${totalAlerts} Active Alert${totalAlerts > 1 ? 's' : ''}</span>`;
                 showAlertsBtn.classList.add('alerts-btn-active');
             } else {
                 showAlertsBtn.innerHTML = `<span>⚡️ No Active Alerts</span>`;
@@ -1576,17 +1763,44 @@
             }
 
             // --- Populate Modal Content ---
-            const finalCriticalHTML = outlierAlertsHTML + criticalAlertsHTML;
-            const alertsListContainer = document.createElement('div');
-            alertsListContainer.className = 'grid grid-cols-1 md:grid-cols-2 gap-x-6';
-            alertsListContainer.innerHTML = `
-                <div><h3 class="text-xl font-bold mb-2 text-amber-400">Critical Alerts</h3>${finalCriticalHTML || '<div class="text-sm text-slate-400">No critical alerts.</div>'}</div>
-                <div><h3 class="text-xl font-bold mb-2 text-red-400">Recent Failures</h3>${pastFailuresHTML || '<div class="text-sm text-slate-400">No recent past failures.</div>'}</div>
-            `;
+            const urgentModalHTML = alerts.urgent.map(alert => `
+                <div class="glass-panel p-4 alert-critical mb-3">
+                    <h3 class="font-bold text-amber-400">URGENT: ${alert.clusterId}</h3>
+                    <p class="text-lg">
+                        <strong class="text-2xl">${alert.bagCount} bags</strong> must be closed for the ${alert.nextCutoff.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} ETD. 
+                        <strong>Time remaining: ${Math.round(alert.diffMins)} mins.</strong>
+                    </p>
+                </div>`
+            ).join('');
             
-            alertsModalContent.innerHTML = horizonHTML;
-            alertsModalContent.appendChild(alertsListContainer);
+            alertsModalContent.innerHTML = `
+                <div><h3 class="text-xl font-bold mb-2 text-amber-400">Urgent Actions</h3>${urgentModalHTML || '<div class="text-sm text-slate-400">No urgent actions required.</div>'}</div>
+                <div class="mt-6"><h3 class="text-xl font-bold mb-2 text-red-400">Failures & Critical Insights</h3>
+                    ${failuresHTML || ''}
+                    ${outlierAlertsHTML || ''}
+                    ${!failuresHTML && !outlierAlertsHTML ? '<div class="text-sm text-slate-400">No active failures or critical insights.</div>' : ''}
+                </div>
+            `;
         }
+
+        urgentAlertBanner.addEventListener('click', e => {
+            const clusterId = e.currentTarget.dataset.clusterId;
+            if (clusterId && state.fullAnalysisData) {
+                const atRiskShipments = state.fullAnalysisData.shipments.filter(s => 
+                    s.cluster_id === clusterId && s.age_hours >= 2.5
+                );
+                const atRiskBagIds = [...new Set(atRiskShipments.map(s => s.bag_id))];
+                const atRiskBags = state.fullAnalysisData.bags.filter(b => atRiskBagIds.includes(b.bag_id));
+
+                openDetailModal({
+                    type: 'bags',
+                    data: atRiskBags,
+                    context: { type: 'insight' },
+                    title: `Urgent Bags for ${clusterId}`
+                });
+            }
+        });
+
 
         showAlertsBtn.addEventListener('click', () => alertsModal.classList.remove('hidden'));
         closeAlertsModalBtn.addEventListener('click', () => alertsModal.classList.add('hidden'));
@@ -1595,41 +1809,7 @@
         });
 
         alertsModalContent.addEventListener('click', (e) => {
-            const prioritizeTarget = e.target.closest('[data-action="prioritize-bags"]');
             const outlierTarget = e.target.closest('[data-action="view-outliers"]');
-
-            if (prioritizeTarget) {
-                const clusterId = prioritizeTarget.dataset.clusterId;
-                const now = new Date();
-                const atRiskShipments = state.fullAnalysisData.shipments.filter(s => s.age_hours >= 2.5 && s.cluster_id === clusterId);
-                const imminentShipments = atRiskShipments.filter(s => {
-                    const cutoffs = clusterCutoffs[s.cluster_id] || [];
-                    return cutoffs.some(timeStr => {
-                        const [hours, minutes] = timeStr.split(':').map(Number);
-                        const cutoffToday = new Date(now);
-                        cutoffToday.setHours(hours, minutes, 0, 0);
-                        return cutoffToday > now && (cutoffToday - now) < 2 * 60 * 60 * 1000;
-                    });
-                });
-                
-                const bagMap = new Map();
-                imminentShipments.forEach(s => { bagMap.set(s.bag_id, (bagMap.get(s.bag_id) || 0) + 1); });
-                const sortedBags = [...bagMap.entries()].sort((a, b) => b[1] - a[1]);
-                let shipmentsToSave = 0;
-                let bagsToPrioritizeCount = 0;
-                const targetToSave = Math.ceil(imminentShipments.length * 0.8);
-                for (const [bagId, count] of sortedBags) {
-                    if (shipmentsToSave >= targetToSave) break;
-                    shipmentsToSave += count;
-                    bagsToPrioritizeCount++;
-                }
-                const prioritizedBagIds = sortedBags.slice(0, bagsToPrioritizeCount).map(b => b[0]);
-                const prioritizedBagsData = state.fullAnalysisData.bags.filter(b => prioritizedBagIds.includes(b.bag_id));
-                
-                openDetailModal({ type: 'bags', data: prioritizedBagsData, context: { type: 'insight', ids: [clusterId] }, title: `Prioritized Bags for ${clusterId}` });
-                alertsModal.classList.add('hidden'); // Close modal after clicking
-            }
-
             if (outlierTarget) {
                 const outlierBags = state.fullAnalysisData.bags.filter(b => b.wbn_count >= 7 && b.age_hours >= 7);
                 openDetailModal({
@@ -1642,6 +1822,74 @@
             }
         });
 
+        // ETD Modal Listeners
+        viewEtdBtn.addEventListener('click', () => {
+            renderEtdModal();
+            etdModal.classList.remove('hidden');
+        });
+        closeEtdModalBtn.addEventListener('click', () => etdModal.classList.add('hidden'));
+        saveEtdBtn.addEventListener('click', () => {
+            if (saveEtdChanges()) {
+                etdModal.classList.add('hidden');
+            }
+        });
+
+
+        function renderEtdModal() {
+            const sortedClusters = Object.keys(state.clusterCutoffs).sort();
+            etdListContainer.innerHTML = sortedClusters.map(clusterId => `
+                <div class="flex flex-col">
+                    <label class="text-sm font-semibold text-slate-300 truncate" title="${clusterId}">${clusterId}</label>
+                    <input type="text" 
+                           class="etd-input filter-control-input mt-1" 
+                           data-cluster-id="${clusterId}" 
+                           value="${state.clusterCutoffs[clusterId].join(', ')}">
+                </div>
+            `).join('');
+        }
+
+        function saveEtdChanges() {
+            const inputs = etdListContainer.querySelectorAll('.etd-input');
+            let allValid = true;
+            const newCutoffs = {};
+
+            const timeRegex = /^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
+
+            inputs.forEach(input => {
+                const clusterId = input.dataset.clusterId;
+                const times = input.value.split(',')
+                    .map(t => t.trim())
+                    .filter(t => t); // Remove empty strings
+
+                let isValid = true;
+                if (times.length > 0) {
+                    isValid = times.every(t => timeRegex.test(t));
+                }
+                
+                if (isValid) {
+                    newCutoffs[clusterId] = times;
+                    input.classList.remove('invalid');
+                } else {
+                    allValid = false;
+                    input.classList.add('invalid');
+                }
+            });
+
+            if (allValid) {
+                state.clusterCutoffs = newCutoffs;
+                // Re-render affected parts of the UI
+                if(state.fullAnalysisData) {
+                    renderDashboard();
+                    generateAlerts();
+                }
+                etdLastUpdated.textContent = `Disclaimer: Last updated ${new Date().toLocaleString()}. Times are in 24-hour format (HH:MM).`;
+                return true;
+            } else {
+                alert("Invalid time format found. Please use HH:MM format, separated by commas for multiple times.");
+                return false;
+            }
+        }
+
         setInterval(() => {
             const now = new Date();
             liveClockEl.textContent = now.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: false });
@@ -1652,3 +1900,4 @@
     </script>
 </body>
 </html>
+
